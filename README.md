@@ -12,3 +12,9 @@ For example, if you add a note on the 6th of June 2025:
       1/
       03.md
 ```
+
+## Create a not
+
+```
+cargo run
+```

@@ -4,7 +4,11 @@ use dotenv::dotenv;
 use std::env;
 use std::fs::create_dir_all;
 use std::fs::File;
+use std::fs::OpenOptions;
+use std::io;
+use std::io::Write;
 use std::path::Path;
+use std::path::PathBuf;
 
 // todo: give the possibility to create a note for a specific day, eg: 2025-12-31
 // todo: add the templates content to the file
@@ -15,10 +19,12 @@ fn main() {
     dotenv().ok();
 
     // handle pathes
-    let not_path = env::var("NOT_PATH").unwrap_or_else(|_| {
-        eprintln!("NOT_PATH environment variable not set.");
-        Err("NOT_PATH not set").unwrap()
+    let not_path = env::var("NOST_NOT_PATH").unwrap_or_else(|_| {
+        eprintln!("NOST_NOT_PATH environment variable not set.");
+        Err("NOST_NOT_PATH not set").unwrap()
     });
+
+    println!("Using NOST_NOT_PATH: {}", not_path);
 
     let not_file_path = compose_file_path(&not_path);
     let not_file_name = name_file();
@@ -40,7 +46,7 @@ fn main() {
     }
 
     // create the file
-    match File::create(&full_not_file_path) {
+    let mut _not_file = match File::create(&full_not_file_path) {
         Ok(_file) => {
             println!("File created at: {}", full_not_file_path);
         }
@@ -49,7 +55,28 @@ fn main() {
         }
     };
 
+    // add not header
+    // eg: [//]: # "not:{uid: '5ef05459-9af2-4760-8f46-3262b49803fc', created_at: 2025-06-11 01:50:56 +02:00, version: '0.1.0'}"
+    let not_info = format!(
+        "\"not:{{uid: '{}', created_at: {}, version: '0.0.0'}}\"",
+        uuid::Uuid::new_v4(),
+        Local::now().format("%Y-%m-%d %H:%M:%S %Z")
+    );
+    let header = format!("[//]: # {}", not_info);
+    append(full_not_file_path.clone().into(), &header).expect("Failed to append content");
+
     println!("File created at: {}", full_not_file_path);
+}
+
+fn append(file_path: PathBuf, content: &str) -> io::Result<()> {
+    let mut file = OpenOptions::new()
+        .write(true)
+        .append(true)
+        .open(&file_path)?;
+
+    writeln!(file, "{}", content)?;
+    println!("Content appended successfully to {}", file_path.display());
+    Ok(())
 }
 
 fn name_file() -> String {

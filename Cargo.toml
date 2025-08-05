@@ -8,3 +8,10 @@ edition = "2021"
 [dependencies]
 dotenv = "0.15.0"
 chrono = "0.4"
+
+[dependencies.uuid]
+version = "1.17.0"
+# Lets you generate random UUIDs
+features = [
+    "v4",
+]
