@@ -55,15 +55,22 @@ fn main() {
         }
     };
 
-    // add not header
+    // add the not header metadata
     // eg: [//]: # "not:{uid: '5ef05459-9af2-4760-8f46-3262b49803fc', created_at: 2025-06-11 01:50:56 +02:00, version: '0.1.0'}"
     let not_info = format!(
         "\"not:{{uid: '{}', created_at: {}, version: '0.0.0'}}\"",
         uuid::Uuid::new_v4(),
         Local::now().format("%Y-%m-%d %H:%M:%S %Z")
     );
-    let header = format!("[//]: # {}", not_info);
-    append(full_not_file_path.clone().into(), &header).expect("Failed to append content");
+    let header = format!("[//]: # {}\n", not_info);
+    append(full_not_file_path.clone().into(), &header).expect("Failed to append not metatadata.");
+
+    // append the current date as text
+    // let date = Local::now().format("%Y-%m-%d");
+    // let date_line = format!("# {}\n", date);
+    let date_line = get_date_as_text();
+
+    append(full_not_file_path.clone().into(), &date_line).expect("Failed to append date as text.");
 
     println!("File created at: {}", full_not_file_path);
 }
@@ -103,6 +110,34 @@ fn week_of_month() -> u32 {
     let week_first = first_day.iso_week().week();
     // Week of month is difference + 1
     week_today - week_first + 1
+}
+
+fn get_day_suffix(day: u32) -> &'static str {
+    match day {
+        11 | 12 | 13 => "th",
+        _ => match day % 10 {
+            1 => "st",
+            2 => "nd",
+            3 => "rd",
+            _ => "th",
+        },
+    }
+}
+
+fn get_date_as_text() -> String {
+    let now = Local::now();
+
+    let weekday = now.format("%A").to_string(); // e.g., "Thursday"
+    let day = now.day(); // e.g., 7
+    let month = now.format("%B").to_string(); // e.g., "August"
+    let year = now.year(); // e.g., 2025
+
+    let suffix = get_day_suffix(day); // e.g., "th"
+    let formatted_date = format!("{}, {} {}{}, {}", weekday, month, day, suffix, year);
+
+    let date_line = format!("# {}\n", formatted_date);
+
+    return date_line;
 }
 
 #[cfg(test)]
