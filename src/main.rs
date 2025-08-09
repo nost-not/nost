@@ -68,8 +68,13 @@ fn main() {
     // append the current date as text
     // let date = Local::now().format("%Y-%m-%d");
     // let date_line = format!("# {}\n", date);
-    let date_line = get_date_as_text();
-
+    let date_line = match env::var("NOST_LANGUAGE")
+        .unwrap_or_else(|_| "en".to_string())
+        .as_str()
+    {
+        "fr" => get_date_as_text_fr(),
+        _ => get_date_as_text_en(), // default to French
+    };
     append(full_not_file_path.clone().into(), &date_line).expect("Failed to append date as text.");
 
     println!("File created at: {}", full_not_file_path);
@@ -124,7 +129,7 @@ fn get_day_suffix(day: u32) -> &'static str {
     }
 }
 
-fn get_date_as_text() -> String {
+fn get_date_as_text_en() -> String {
     let now = Local::now();
 
     let weekday = now.format("%A").to_string(); // e.g., "Thursday"
@@ -134,10 +139,41 @@ fn get_date_as_text() -> String {
 
     let suffix = get_day_suffix(day); // e.g., "th"
     let formatted_date = format!("{}, {} {}{}, {}", weekday, month, day, suffix, year);
-
     let date_line = format!("# {}\n", formatted_date);
 
-    return date_line;
+    date_line
+}
+
+fn get_date_as_text_fr() -> String {
+    let now = Local::now();
+
+    let weekdays = [
+        "Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi",
+    ];
+    let months = [
+        "janvier",
+        "février",
+        "mars",
+        "avril",
+        "mai",
+        "juin",
+        "juillet",
+        "août",
+        "septembre",
+        "octobre",
+        "novembre",
+        "décembre",
+    ];
+
+    let weekday = weekdays[now.weekday().num_days_from_sunday() as usize];
+    let day = now.day();
+    let month = months[(now.month() - 1) as usize];
+    let year = now.year();
+
+    let formatted_date = format!("{} {} {} {}", weekday, day, month, year);
+    let date_line = format!("# {}\n", formatted_date);
+
+    date_line
 }
 
 #[cfg(test)]
