@@ -16,5 +16,15 @@ For example, if you add a note on the 6th of June 2025:
 ## Create a not
 
 ```
-cargo run
+cargo run not
+```
+
+## (WIP) Use not for working
+
+Soon...
+
+For test purpose:
+
+```
+cargo run work
 ```
