@@ -6,6 +6,7 @@ use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::Result;
 use std::io::Write;
+use std::io::{Error, ErrorKind};
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -105,7 +106,37 @@ pub fn get_date_as_text_fr() -> String {
     date_line
 }
 
-pub fn handle_not_command() {
+pub fn get_or_create_not(title: Option<String>) -> std::io::Result<String> {
+    // get all existing notes
+
+    match title {
+        Some(title) => {
+            // todo: check if not title is correct
+            create_not(Some(title.clone())).unwrap();
+
+            let not_path = env::var("NOST_NOT_PATH").unwrap_or_else(|_| {
+                eprintln!("NOST_NOT_PATH environment variable not set.");
+                Err("NOST_NOT_PATH not set").unwrap()
+            });
+            let not_file_path = compose_file_path(&not_path);
+            let not_file_name = name_file();
+            let full_not_file_path = format!("{}{}", &not_file_path, not_file_name);
+
+            println!(
+                "Using NOST_NOT_PATH in get_or_create_not: {}",
+                full_not_file_path
+            );
+
+            Ok(full_not_file_path)
+        }
+        None => {
+            let new_not_path = create_not(None);
+            Ok(new_not_path.unwrap())
+        }
+    }
+}
+
+pub fn create_not(title: Option<String>) -> std::io::Result<String> {
     // handle pathes
     let not_path = env::var("NOST_NOT_PATH").unwrap_or_else(|_| {
         eprintln!("NOST_NOT_PATH environment variable not set.");
@@ -115,13 +146,20 @@ pub fn handle_not_command() {
     println!("Using NOST_NOT_PATH: {}", not_path);
 
     let not_file_path = compose_file_path(&not_path);
-    let not_file_name = name_file();
+
+    let not_file_name = match &title {
+        Some(t) => t.clone(), // todo: validate t here
+        None => name_file(),
+    };
+
     let full_not_file_path = format!("{}{}", &not_file_path, not_file_name);
 
     // create folders if needed
     if let Err(e) = create_dir_all(&not_file_path) {
-        eprintln!("Failed to create directory: {}", e);
-        return;
+        return Err(Error::new(
+            ErrorKind::Other,
+            format!("Failed to create directory: {}", e),
+        ));
     }
 
     // only create the file if it does not exist
@@ -130,7 +168,7 @@ pub fn handle_not_command() {
             "This note already exists. Nothing has been done.: {}",
             full_not_file_path
         );
-        return;
+        return Ok(full_not_file_path);
     }
 
     // create the file
@@ -166,4 +204,6 @@ pub fn handle_not_command() {
     append(full_not_file_path.clone().into(), &date_line).expect("Failed to append date as text.");
 
     println!("File created at: {}", full_not_file_path);
+
+    Ok(full_not_file_path)
 }

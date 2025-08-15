@@ -18,11 +18,22 @@ fn main() {
     }
 
     if args[1] == "not" {
-        not::handle_not_command();
+        if args.len() > 2 {
+            println!("Creating not with title: {}", args[1]);
+            not::create_not(Some(args[2].clone())).unwrap();
+        } else {
+            not::create_not(None).unwrap();
+        }
         std::process::exit(0);
-    } else if args[1] == "work" {
-        work::test_module_injection();
+    } else if args[1] == "start-work" {
+        work::start_work();
         std::process::exit(0);
+    } else if args[1] == "stop-work" {
+        work::stop_work();
+        std::process::exit(0);
+    } else {
+        eprintln!("Unknown command: \"{}\"", args[1]);
+        std::process::exit(1);
     }
 }
 
