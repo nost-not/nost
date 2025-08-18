@@ -4,18 +4,14 @@ use std::env;
 use std::fs::create_dir_all;
 use std::fs::File;
 use std::fs::OpenOptions;
+use std::io::Error;
 use std::io::Result;
 use std::io::Write;
-use std::io::{Error, ErrorKind};
 use std::path::Path;
 use std::path::PathBuf;
 
 pub fn append(file_path: PathBuf, content: &str) -> Result<()> {
-    let mut file = OpenOptions::new()
-        .write(true)
-        .append(true)
-        .open(&file_path)?;
-
+    let mut file = OpenOptions::new().append(true).open(file_path)?;
     writeln!(file, "{}", content)?;
     Ok(())
 }
@@ -52,7 +48,7 @@ fn week_of_month() -> u32 {
 
 fn get_day_suffix(day: u32) -> &'static str {
     match day {
-        11 | 12 | 13 => "th",
+        11..=13 => "th",
         _ => match day % 10 {
             1 => "st",
             2 => "nd",
@@ -119,7 +115,7 @@ pub fn get_or_create_not(title: Option<String>) -> std::io::Result<String> {
 
             let not_path = env::var("NOST_NOT_PATH").unwrap_or_else(|_| {
                 eprintln!("NOST_NOT_PATH environment variable not set.");
-                Err("NOST_NOT_PATH not set").unwrap()
+                panic!("NOST_NOT_PATH not set");
             });
             let not_file_path = compose_file_path(&not_path);
             let not_file_name = name_file();
@@ -143,7 +139,7 @@ pub fn create_not(title: Option<String>) -> std::io::Result<String> {
     // handle pathes
     let not_path = env::var("NOST_NOT_PATH").unwrap_or_else(|_| {
         eprintln!("NOST_NOT_PATH environment variable not set.");
-        Err("NOST_NOT_PATH not set").unwrap()
+        panic!("NOST_NOT_PATH not set");
     });
 
     println!("Using NOST_NOT_PATH: {}", not_path);
@@ -159,10 +155,10 @@ pub fn create_not(title: Option<String>) -> std::io::Result<String> {
 
     // create folders if needed
     if let Err(e) = create_dir_all(&not_file_path) {
-        return Err(Error::new(
-            ErrorKind::Other,
-            format!("🛑 Failed to create directory: {}", e),
-        ));
+        return Err(Error::other(format!(
+            "🛑 Failed to create directory: {}",
+            e
+        )));
     }
 
     // only create the file if it does not exist
@@ -172,7 +168,7 @@ pub fn create_not(title: Option<String>) -> std::io::Result<String> {
     }
 
     // create the file
-    let mut _not_file = match File::create(&full_not_file_path) {
+    match File::create(&full_not_file_path) {
         Ok(_file) => {
             println!("✅ File created: {}", full_not_file_path);
         }
@@ -212,7 +208,7 @@ pub fn create_not(title: Option<String>) -> std::io::Result<String> {
 
 pub fn annotate(content: &str, not_path: &str) {
     let annotation = format!("[//]: # {}\n", content);
-    append(not_path.clone().into(), &annotation).expect("🛑 Failed to annotate.");
+    append(not_path.into(), &annotation).expect("🛑 Failed to annotate.");
 }
 
 #[cfg(test)]

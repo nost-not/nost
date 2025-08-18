@@ -1,0 +1,31 @@
+name: 💚 Nost unit test
+
+on: push
+
+jobs:
+  build_and_test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+
+      - name: Run cargo check
+        run: cargo check --verbose
+
+      - name: Run cargo build
+        run: cargo build --verbose
+
+      - name: Run cargo test
+        run: cargo test --verbose
+
+      - name: Run cargo clippy
+        run: cargo clippy --verbose -- -D warnings
+
+      - name: Check formatting
+        run: cargo fmt -- --check
