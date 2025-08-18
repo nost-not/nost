@@ -3,16 +3,23 @@ name: 💚 Nost unit test
 on: push
 
 jobs:
-  test:
+  build_and_test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
 
       - name: Set up Rust
-        uses: actions/setup-rust@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          rust-version: 1.71.0
+          toolchain: stable
+          components: rustfmt, clippy
 
-      - name: Run tests
-        run: cargo test
+      - name: Run cargo check
+        run: cargo check --verbose
+
+      - name: Run cargo build
+        run: cargo build --verbose
+
+      - name: Run cargo test
+        run: cargo test --verbose
