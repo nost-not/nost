@@ -4,17 +4,14 @@ use std::env;
 use std::fs::create_dir_all;
 use std::fs::File;
 use std::fs::OpenOptions;
+use std::io::Error;
 use std::io::Result;
 use std::io::Write;
-use std::io::Error;
 use std::path::Path;
 use std::path::PathBuf;
 
 pub fn append(file_path: PathBuf, content: &str) -> Result<()> {
-    let mut file = OpenOptions::new()
-        .append(true)
-        .open(file_path)?;
-
+    let mut file = OpenOptions::new().append(true).open(file_path)?;
     writeln!(file, "{}", content)?;
     Ok(())
 }
@@ -158,9 +155,10 @@ pub fn create_not(title: Option<String>) -> std::io::Result<String> {
 
     // create folders if needed
     if let Err(e) = create_dir_all(&not_file_path) {
-        return Err(Error::other(
-            format!("🛑 Failed to create directory: {}", e),
-        ));
+        return Err(Error::other(format!(
+            "🛑 Failed to create directory: {}",
+            e
+        )));
     }
 
     // only create the file if it does not exist
