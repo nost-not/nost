@@ -46,7 +46,7 @@ cargo test
 Style:
 
 ```
-cargo clippy --verbose
+cargo clippy --verbose -- -D warnings
 ```
 
 Linter:
