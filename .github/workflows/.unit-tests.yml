@@ -23,3 +23,9 @@ jobs:
 
       - name: Run cargo test
         run: cargo test --verbose
+
+      - name: Run cargo clippy
+        run: cargo clippy --verbose -- -D warnings
+
+      - name: Check formatting
+        run: cargo fmt -- --check

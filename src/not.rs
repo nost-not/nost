@@ -14,7 +14,7 @@ pub fn append(file_path: PathBuf, content: &str) -> Result<()> {
     let mut file = OpenOptions::new()
         .write(true)
         .append(true)
-        .open(&file_path)?;
+        .open(file_path)?;
 
     writeln!(file, "{}", content)?;
     Ok(())
@@ -172,7 +172,7 @@ pub fn create_not(title: Option<String>) -> std::io::Result<String> {
     }
 
     // create the file
-    let mut _not_file = match File::create(&full_not_file_path) {
+    match File::create(&full_not_file_path) {
         Ok(_file) => {
             println!("✅ File created: {}", full_not_file_path);
         }

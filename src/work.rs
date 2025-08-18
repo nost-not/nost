@@ -1,16 +1,16 @@
 use std::env;
 
 pub fn get_salary() -> String {
-    return env::var("NOST_WORK_SALARY").unwrap_or_else(|_| {
+    env::var("NOST_WORK_SALARY").unwrap_or_else(|_| {
         eprintln!("NOST_WORK_SALARY environment variable not set.");
         "0".to_string()
-    });
+    })
 }
 pub fn get_salary_currency() -> String {
-    return env::var("NOST_WORK_CURRENCY").unwrap_or_else(|_| {
+    env::var("NOST_WORK_CURRENCY").unwrap_or_else(|_| {
         eprintln!("NOST_WORK_CURRENCY environment variable not set.");
         "EUR".to_string()
-    });
+    })
 }
 
 #[cfg(test)]

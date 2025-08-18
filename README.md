@@ -21,10 +21,36 @@ cargo run not
 
 ## (WIP) Use not for working
 
-Soon...
-
-For test purpose:
+Begin a work session:
 
 ```
-cargo run work
+cargo run start-work
+```
+
+End a work session:
+
+```
+cargo run stop-work
+```
+
+For now, the data is only annotated, but these annotations are not yet used or processed.
+
+## Test
+
+Unit tests:
+
+```
+cargo test
+```
+
+Style:
+
+```
+cargo clippy --verbose
+```
+
+Linter:
+
+```
+cargo fmt -- --check
 ```
