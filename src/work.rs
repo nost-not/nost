@@ -1,4 +1,6 @@
+use crate::not::get_not_pathes;
 use std::env;
+use std::path::Path;
 
 pub fn get_salary() -> String {
     env::var("NOST_WORK_SALARY").unwrap_or_else(|_| {
@@ -11,6 +13,42 @@ pub fn get_salary_currency() -> String {
         eprintln!("NOST_WORK_CURRENCY environment variable not set.");
         "EUR".to_string()
     })
+}
+
+pub fn generate_work_stats(path_as_string: &str) -> std::io::Result<String> {
+    let path = Path::new(path_as_string);
+
+    // get the current month path
+    let month_path = path.parent().unwrap().parent().unwrap();
+
+    println!("Folder path: {}", month_path.display());
+
+    // get all the path inside the month path
+    let pathes = get_not_pathes(month_path.to_path_buf())
+        .unwrap()
+        .into_iter()
+        .for_each(|p| println!("Found note: {}", p.display()));
+
+    // process the notes
+    // todo: extract the anntotations from each note
+
+    // define the stats
+    let stats_lines = "| 2025/08/12 | 4.5   | 1          |";
+    let stats = format!(
+        "\
+## Work Stats
+
+| Day        | Hours | Cumulative |
+| ---------- | ----- | ---------- |
+| 2025/08/10 | 4.5   | 1          |
+| 2025/08/11 | 7     | 2          |
+{lines}
+| Total      | 11.5  | 2          |
+",
+        lines = stats_lines
+    );
+
+    Ok(stats)
 }
 
 #[cfg(test)]

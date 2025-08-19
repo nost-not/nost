@@ -1,14 +1,49 @@
 use chrono::Datelike;
 use chrono::Local;
+use regex::Regex;
 use std::env;
 use std::fs::create_dir_all;
+use std::fs::read_dir;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::Error;
+use std::io::ErrorKind;
 use std::io::Result;
 use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
+
+pub fn get_not_pathes(path: PathBuf) -> Result<Vec<PathBuf>> {
+    let mut files = Vec::new();
+    let mut pathes: Vec<PathBuf> = vec![path];
+
+    let folder_regex = Regex::new(r"^\d+$").unwrap();
+    let file_regex = Regex::new(r".*\d+\.md$").unwrap();
+
+    while let Some(current) = pathes.pop() {
+        match read_dir(&current) {
+            Ok(entries) => {
+                for entry in entries.flatten() {
+                    let current_path = entry.path();
+                    if let Some(name) = current_path.file_name().and_then(|name| name.to_str()) {
+                        if current_path.is_dir() {
+                            if folder_regex.is_match(name) {
+                                pathes.push(current_path);
+                            }
+                        } else if file_regex.is_match(name) {
+                            files.push(current_path);
+                        }
+                    }
+                }
+            }
+            Err(err) => return Err(err),
+        }
+    }
+
+    files.sort();
+
+    Ok(files)
+}
 
 pub fn append(file_path: PathBuf, content: &str) -> Result<()> {
     let mut file = OpenOptions::new().append(true).open(file_path)?;
@@ -155,10 +190,10 @@ pub fn create_not(title: Option<String>) -> std::io::Result<String> {
 
     // create folders if needed
     if let Err(e) = create_dir_all(&not_file_path) {
-        return Err(Error::other(format!(
-            "🛑 Failed to create directory: {}",
-            e
-        )));
+        return Err(Error::new(
+            ErrorKind::Other,
+            format!("🛑 Failed to create directory: {}", e),
+        ));
     }
 
     // only create the file if it does not exist
@@ -263,5 +298,44 @@ mod tests {
         // The annotation should be wrapped as [//]: # "..."
         let expected = format!("[//]: # {}\n", annotation_content);
         assert!(file_content.contains(&expected));
+    }
+
+    #[test]
+    fn test_get_not_pathes() {
+        use std::fs::{self, File};
+        use std::io::Write;
+        use tempfile::tempdir;
+
+        // Create a temporary directory
+        let dir = tempdir().unwrap();
+        let base = dir.path();
+
+        // Create subfolders and files
+        let week_folder = base.join("1");
+        fs::create_dir(&week_folder).unwrap();
+
+        let file1 = week_folder.join("01.md");
+        let file2 = week_folder.join("02.md");
+        let file3 = week_folder.join("not_a_note.txt");
+
+        File::create(&file1).unwrap().write_all(b"note 1").unwrap();
+        File::create(&file2).unwrap().write_all(b"note 2").unwrap();
+        File::create(&file3)
+            .unwrap()
+            .write_all(b"not a note")
+            .unwrap();
+
+        // Should find only .md files in numeric folders
+        let found = super::get_not_pathes(base.to_path_buf()).unwrap();
+
+        let found_files: Vec<_> = found
+            .iter()
+            .map(|p| p.file_name().unwrap().to_str().unwrap().to_string())
+            .collect();
+
+        assert!(found_files.contains(&"01.md".to_string()));
+        assert!(found_files.contains(&"02.md".to_string()));
+        assert!(!found_files.contains(&"not_a_note.txt".to_string()));
+        assert_eq!(found_files.len(), 2);
     }
 }
