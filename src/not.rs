@@ -1,6 +1,7 @@
 use chrono::Datelike;
 use chrono::Local;
 use regex::Regex;
+use std::collections::HashMap;
 use std::env;
 use std::fs::create_dir_all;
 use std::fs::read_dir;
@@ -12,6 +13,29 @@ use std::io::Result;
 use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
+
+pub fn extract_annotations_from_one_file(file_path: &PathBuf) -> Result<Vec<String>> {
+    let content = std::fs::read_to_string(file_path)?;
+    let re = Regex::new(r#"^\[//\]: # "not.*"\s*$"#).unwrap();
+
+    let extracted: Vec<String> = content
+        .lines()
+        .filter_map(|line| {
+            if re.is_match(line) {
+                Some(line.to_string())
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    let not_path = env::var("NOST_NOT_PATH").unwrap_or_else(|_| {
+        eprintln!("NOST_NOT_PATH environment variable not set.");
+        panic!("NOST_NOT_PATH not set");
+    });
+
+    Ok(extracted)
+}
 
 pub fn get_not_pathes(path: PathBuf) -> Result<Vec<PathBuf>> {
     let mut files = Vec::new();

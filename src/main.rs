@@ -47,9 +47,8 @@ fn main() {
         // consult all annotations for the month
         // return an array of stats
         // and append it to the current not
-        let not_path = get_or_create_not(None).unwrap();
-        let stats = work::generate_work_stats(&not_path);
-        not::annotate(&stats.unwrap(), &not_path);
+        let stats = work::compute_work_stats();
+        // not::annotate(&stats.unwrap(), &not_path);
         std::process::exit(0);
     } else {
         eprintln!("Unknown command: \"{}\"", args[1]);

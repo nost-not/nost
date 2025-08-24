@@ -1,4 +1,6 @@
+use crate::not::extract_annotations_from_one_file;
 use crate::not::get_not_pathes;
+use crate::not::get_or_create_not;
 use std::env;
 use std::path::Path;
 
@@ -15,6 +17,31 @@ pub fn get_salary_currency() -> String {
     })
 }
 
+pub fn compute_work_stats() {
+    // get current month path
+    let current_not_ref = get_or_create_not(None).unwrap();
+    let current_path = Path::new(&current_not_ref);
+
+    let month_path = current_path.parent().unwrap().parent().unwrap();
+
+    // get pathes
+    let pathes = get_not_pathes(month_path.to_path_buf()).unwrap();
+
+    // get annotations
+    let mut annotations = Vec::new();
+    for path in pathes {
+        let annotations_for_current_file = extract_annotations_from_one_file(&path);
+        annotations.extend(annotations_for_current_file);
+    }
+
+    println!("{:?}", annotations);
+
+    // todo: filter works stats
+    // todo: prepare works data
+    // todo: then in another function, display the data
+}
+
+// todo: to delete after moving in compute works stats
 pub fn generate_work_stats(path_as_string: &str) -> std::io::Result<String> {
     let path = Path::new(path_as_string);
 
@@ -24,13 +51,13 @@ pub fn generate_work_stats(path_as_string: &str) -> std::io::Result<String> {
     println!("Folder path: {}", month_path.display());
 
     // get all the path inside the month path
-    let pathes = get_not_pathes(month_path.to_path_buf())
-        .unwrap()
-        .into_iter()
-        .for_each(|p| println!("Found note: {}", p.display()));
+    let pathes = get_not_pathes(month_path.to_path_buf()).unwrap();
 
     // process the notes
-    // todo: extract the anntotations from each note
+    for path in pathes {
+        let annotations = extract_annotations_from_one_file(&path);
+        println!("{:?}", annotations);
+    }
 
     // define the stats
     let stats_lines = "| 2025/08/12 | 4.5   | 1          |";
