@@ -41,6 +41,15 @@ fn main() {
         let annotation = format!("not: {{stop-work: '{}'}}", get_now_as_string());
         not::annotate(&annotation, &not_path);
         std::process::exit(0);
+    } else if args[1] == "work-stats" {
+        // todo: add logic to compute work stats
+        // return stats for the current month
+        // consult all annotations for the month
+        // return an array of stats
+        // and append it to the current not
+        let stats = work::compute_work_stats();
+        // not::annotate(&stats.unwrap(), &not_path);
+        std::process::exit(0);
     } else {
         eprintln!("Unknown command: \"{}\"", args[1]);
         std::process::exit(1);
