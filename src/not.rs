@@ -1,7 +1,6 @@
 use chrono::Datelike;
 use chrono::Local;
 use regex::Regex;
-use std::collections::HashMap;
 use std::env;
 use std::fs::create_dir_all;
 use std::fs::read_dir;
@@ -28,11 +27,6 @@ pub fn extract_annotations_from_one_file(file_path: &PathBuf) -> Result<Vec<Stri
             }
         })
         .collect();
-
-    let not_path = env::var("NOST_NOT_PATH").unwrap_or_else(|_| {
-        eprintln!("NOST_NOT_PATH environment variable not set.");
-        panic!("NOST_NOT_PATH not set");
-    });
 
     Ok(extracted)
 }

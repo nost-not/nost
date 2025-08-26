@@ -1,6 +1,7 @@
 use crate::not::extract_annotations_from_one_file;
 use crate::not::get_not_pathes;
 use crate::not::get_or_create_not;
+use regex::Regex;
 use std::env;
 use std::path::Path;
 
@@ -30,13 +31,31 @@ pub fn compute_work_stats() {
     // get annotations
     let mut annotations = Vec::new();
     for path in pathes {
-        let annotations_for_current_file = extract_annotations_from_one_file(&path);
+        let annotations_for_current_file = extract_annotations_from_one_file(&path).unwrap();
         annotations.extend(annotations_for_current_file);
     }
 
-    println!("{:?}", annotations);
+    // clean the annotation
+    let re = Regex::new(r#"\[//\]: # "not:(\{.*\})""#).unwrap();
 
-    // todo: filter works stats
+    let cleaned_annotations: Vec<String> = annotations
+        .into_iter()
+        .filter_map(|annotation| {
+            re.captures(&annotation)
+                .and_then(|caps| caps.get(1).map(|m| m.as_str().to_string()))
+        })
+        .collect();
+
+    // convert all annotations in object?
+
+    // filter work
+    let work_annotations: Vec<String> = cleaned_annotations
+        .into_iter()
+        .filter(|annotation| annotation.contains("start-work") || annotation.contains("stop-work"))
+        .collect();
+
+    println!("{:?}", work_annotations);
+
     // todo: prepare works data
     // todo: then in another function, display the data
 }
