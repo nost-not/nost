@@ -1,4 +1,9 @@
+use crate::not::extract_annotations_from_one_file;
+use crate::not::get_not_pathes;
+use crate::not::get_or_create_not;
+use regex::Regex;
 use std::env;
+use std::path::Path;
 
 pub fn get_salary() -> String {
     env::var("NOST_WORK_SALARY").unwrap_or_else(|_| {
@@ -11,6 +16,85 @@ pub fn get_salary_currency() -> String {
         eprintln!("NOST_WORK_CURRENCY environment variable not set.");
         "EUR".to_string()
     })
+}
+
+pub fn compute_work_stats() {
+    // get current month path
+    let current_not_ref = get_or_create_not(None).unwrap();
+    let current_path = Path::new(&current_not_ref);
+
+    let month_path = current_path.parent().unwrap().parent().unwrap();
+
+    // get pathes
+    let pathes = get_not_pathes(month_path.to_path_buf()).unwrap();
+
+    // get annotations
+    let mut annotations = Vec::new();
+    for path in pathes {
+        let annotations_for_current_file = extract_annotations_from_one_file(&path).unwrap();
+        annotations.extend(annotations_for_current_file);
+    }
+
+    // clean the annotation
+    let re = Regex::new(r#"\[//\]: # "not:(\{.*\})""#).unwrap();
+
+    let cleaned_annotations: Vec<String> = annotations
+        .into_iter()
+        .filter_map(|annotation| {
+            re.captures(&annotation)
+                .and_then(|caps| caps.get(1).map(|m| m.as_str().to_string()))
+        })
+        .collect();
+
+    // convert all annotations in object?
+
+    // filter work
+    let work_annotations: Vec<String> = cleaned_annotations
+        .into_iter()
+        .filter(|annotation| annotation.contains("start-work") || annotation.contains("stop-work"))
+        .collect();
+
+    println!("{:?}", work_annotations);
+
+    // todo: prepare works data
+    // todo: then in another function, display the data
+}
+
+// todo: to delete after moving in compute works stats
+pub fn generate_work_stats(path_as_string: &str) -> std::io::Result<String> {
+    let path = Path::new(path_as_string);
+
+    // get the current month path
+    let month_path = path.parent().unwrap().parent().unwrap();
+
+    println!("Folder path: {}", month_path.display());
+
+    // get all the path inside the month path
+    let pathes = get_not_pathes(month_path.to_path_buf()).unwrap();
+
+    // process the notes
+    for path in pathes {
+        let annotations = extract_annotations_from_one_file(&path);
+        println!("{:?}", annotations);
+    }
+
+    // define the stats
+    let stats_lines = "| 2025/08/12 | 4.5   | 1          |";
+    let stats = format!(
+        "\
+## Work Stats
+
+| Day        | Hours | Cumulative |
+| ---------- | ----- | ---------- |
+| 2025/08/10 | 4.5   | 1          |
+| 2025/08/11 | 7     | 2          |
+{lines}
+| Total      | 11.5  | 2          |
+",
+        lines = stats_lines
+    );
+
+    Ok(stats)
 }
 
 #[cfg(test)]

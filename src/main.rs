@@ -29,7 +29,7 @@ fn main() {
     } else if args[1] == "start-work" {
         let not_path = get_or_create_not(None).unwrap();
         let annotation = format!(
-            "not: {{start-work: '{}', salary: '{}', salary-currency: '{}'}}",
+            "\"not: {{start-work: '{}', salary: '{}', salary-currency: '{}'}}\"",
             get_now_as_string(),
             work::get_salary(),
             work::get_salary_currency()
@@ -38,8 +38,17 @@ fn main() {
         std::process::exit(0);
     } else if args[1] == "stop-work" {
         let not_path = get_or_create_not(None).unwrap();
-        let annotation = format!("not: {{stop-work: '{}'}}", get_now_as_string());
+        let annotation = format!("\"not: {{stop-work: '{}'}}\"", get_now_as_string());
         not::annotate(&annotation, &not_path);
+        std::process::exit(0);
+    } else if args[1] == "work-stats" {
+        // todo: add logic to compute work stats
+        // return stats for the current month
+        // consult all annotations for the month
+        // return an array of stats
+        // and append it to the current not
+        let stats = work::compute_work_stats();
+        // not::annotate(&stats.unwrap(), &not_path);
         std::process::exit(0);
     } else {
         eprintln!("Unknown command: \"{}\"", args[1]);
