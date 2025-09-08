@@ -1,10 +1,12 @@
 use dotenv::dotenv;
 use std::env;
+use std::ops::Not;
 
 mod not;
 mod work;
 use crate::not::get_now_as_string;
 use crate::not::get_or_create_not;
+use crate::not::NotEvent;
 
 // todo: give the possibility to create a note for a specific day, eg: 2025-12-31
 // todo: add the templates content to the file
@@ -28,18 +30,11 @@ fn main() {
         std::process::exit(0);
     } else if args[1] == "start-work" {
         let not_path = get_or_create_not(None).unwrap();
-        let annotation = format!(
-            "\"not: {{start-work: '{}', salary: '{}', salary-currency: '{}'}}\"",
-            get_now_as_string(),
-            work::get_salary(),
-            work::get_salary_currency()
-        );
-        not::annotate(&annotation, &not_path);
+        not::annotate(None, None, NotEvent::StartWork, None, &not_path);
         std::process::exit(0);
     } else if args[1] == "stop-work" {
         let not_path = get_or_create_not(None).unwrap();
-        let annotation = format!("\"not: {{stop-work: '{}'}}\"", get_now_as_string());
-        not::annotate(&annotation, &not_path);
+        not::annotate(None, None, NotEvent::StopWork, None, &not_path);
         std::process::exit(0);
     } else if args[1] == "work-stats" {
         // todo: add logic to compute work stats

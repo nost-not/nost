@@ -2,6 +2,7 @@ use chrono::Datelike;
 use chrono::Local;
 use regex::Regex;
 use std::env;
+use std::fmt;
 use std::fs::create_dir_all;
 use std::fs::read_dir;
 use std::fs::File;
@@ -10,8 +11,29 @@ use std::io::Error;
 use std::io::ErrorKind;
 use std::io::Result;
 use std::io::Write;
+use std::ops::Not;
 use std::path::Path;
 use std::path::PathBuf;
+use uuid::Uuid;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NotEvent {
+    StartWork,
+    StopWork,
+    CreateNot,
+    Other(String),
+}
+
+impl fmt::Display for NotEvent {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            NotEvent::StartWork => write!(f, "START_WORK"),
+            NotEvent::StopWork => write!(f, "STOP_WORK"),
+            NotEvent::CreateNot => write!(f, "CREATE_NOT"),
+            NotEvent::Other(s) => write!(f, "{}", s),
+        }
+    }
+}
 
 pub fn extract_annotations_from_one_file(file_path: &PathBuf) -> Result<Vec<String>> {
     let content = std::fs::read_to_string(file_path)?;
@@ -232,14 +254,22 @@ pub fn create_not(title: Option<String>) -> std::io::Result<String> {
 
     // add the not header metadata
     // eg: [//]: # "not:{uid: '5ef05459-9af2-4760-8f46-3262b49803fc', created_at: 2025-06-11 01:50:56 +02:00, version: '0.1.0'}"
-    let not_info = format!(
-        "\"not:{{uid: '{}', created_at: {}, version: '0.0.0'}}\"",
-        uuid::Uuid::new_v4(),
-        get_now_as_string()
+    // let not_info = format!(
+    //     "\"not:{{uid: '{}', created_at: {}, version: '0.0.0'}}\"",
+    //     uuid::Uuid::new_v4(),
+    //     get_now_as_string()
+    // );
+    // let header = format!("[//]: # {}\n", not_info);
+    // append(full_not_file_path.clone().into(), &header)
+    //     .expect("🛑 Failed to append not metatadata.");
+
+    annotate(
+        None,
+        None,
+        NotEvent::CreateNot,
+        None,
+        full_not_file_path.as_str(),
     );
-    let header = format!("[//]: # {}\n", not_info);
-    append(full_not_file_path.clone().into(), &header)
-        .expect("🛑 Failed to append not metatadata.");
 
     // append the current date as text
     // let date = Local::now().format("%Y-%m-%d");
@@ -259,7 +289,29 @@ pub fn create_not(title: Option<String>) -> std::io::Result<String> {
     Ok(full_not_file_path)
 }
 
-pub fn annotate(content: &str, not_path: &str) {
+pub fn annotate(
+    option_date: Option<&str>,
+    key: Option<&str>,
+    event: NotEvent,
+    input_uid: Option<&Uuid>,
+    not_path: &str,
+) {
+    let now = get_now_as_string();
+    let date = match option_date {
+        Some(d) => d,
+        None => &now,
+    };
+
+    let new_uid = Uuid::new_v4().to_string();
+    let uid = match input_uid {
+        Some(u) => u.to_string(),
+        None => new_uid,
+    };
+
+    let content = format!(
+        "\"{{date: '{}', event: '{}', uuid: '{}'}}\"",
+        date, event, uid
+    );
     let annotation = format!("[//]: # {}\n", content);
     append(not_path.into(), &annotation).expect("🛑 Failed to annotate.");
 }
@@ -306,7 +358,13 @@ mod tests {
 
         // Call annotate
         let annotation_content = "annotate test content";
-        super::annotate(annotation_content, file_path.to_str().unwrap());
+        super::annotate(
+            None,
+            None,
+            crate::not::NotEvent::CreateNot,
+            None,
+            file_path.to_str().unwrap(),
+        );
 
         // Read back the content
         let mut file = fs::File::open(&file_path).unwrap();
@@ -314,8 +372,15 @@ mod tests {
         file.read_to_string(&mut file_content).unwrap();
 
         // The annotation should be wrapped as [//]: # "..."
-        let expected = format!("[//]: # {}\n", annotation_content);
-        assert!(file_content.contains(&expected));
+        let annotation_regex =
+            regex::Regex::new(r#"\[//\]: # "\{date: '.*', event: 'CREATE_NOT', uuid: '.*'\}""#)
+                .unwrap();
+        assert!(
+            file_content
+                .lines()
+                .any(|line| annotation_regex.is_match(line)),
+            "Annotation with expected format not found in file content"
+        );
     }
 
     #[test]

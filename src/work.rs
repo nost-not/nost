@@ -1,6 +1,7 @@
 use crate::not::extract_annotations_from_one_file;
 use crate::not::get_not_pathes;
 use crate::not::get_or_create_not;
+use crate::work;
 use regex::Regex;
 use std::env;
 use std::path::Path;
@@ -46,15 +47,23 @@ pub fn compute_work_stats() {
         })
         .collect();
 
-    // convert all annotations in object?
-
     // filter work
     let work_annotations: Vec<String> = cleaned_annotations
         .into_iter()
         .filter(|annotation| annotation.contains("start-work") || annotation.contains("stop-work"))
         .collect();
 
-    println!("{:?}", work_annotations);
+    work_annotations.iter().for_each(|annotation| {
+        // from json to object
+        // event: "start-work" or "stop-work"
+
+        // if let Ok(annotation_object) = serde_json::from_str::<serde_json::Value>(annotation) {
+        //     println!("{:?}", annotation_object);
+        //     // Do something with the annotation object
+        // }
+    });
+
+    // println!("{:?}", work_annotations);
 
     // todo: prepare works data
     // todo: then in another function, display the data
