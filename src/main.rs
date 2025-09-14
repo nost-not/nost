@@ -1,10 +1,8 @@
 use dotenv::dotenv;
 use std::env;
-use std::ops::Not;
 
 mod not;
 mod work;
-use crate::not::get_now_as_string;
 use crate::not::get_or_create_not;
 use crate::not::NotEvent;
 
@@ -37,13 +35,8 @@ fn main() {
         not::annotate(None, None, NotEvent::StopWork, None, &not_path);
         std::process::exit(0);
     } else if args[1] == "work-stats" {
-        // todo: add logic to compute work stats
-        // return stats for the current month
-        // consult all annotations for the month
-        // return an array of stats
-        // and append it to the current not
         let stats = work::compute_work_stats();
-        // not::annotate(&stats.unwrap(), &not_path);
+        work::display_work_stats(stats);
         std::process::exit(0);
     } else {
         eprintln!("Unknown command: \"{}\"", args[1]);
