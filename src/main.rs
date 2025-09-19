@@ -1,6 +1,7 @@
 use dotenv::dotenv;
 use std::env;
 
+mod annotation;
 mod not;
 mod work;
 use crate::not::get_or_create_not;

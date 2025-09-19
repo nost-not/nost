@@ -1,9 +1,10 @@
-use crate::not::convert_into_annotation;
+use crate::annotation::convert_into_annotation;
 use crate::not::extract_annotations_from_one_file;
 use crate::not::get_not_pathes;
 use crate::not::get_or_create_not;
-use crate::not::Annotation;
+
 // use regex::Regex;
+use crate::annotation::Annotation;
 use std::collections::HashMap;
 use std::env;
 use std::path::Path;
