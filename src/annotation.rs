@@ -13,6 +13,16 @@ pub struct Annotation {
     pub datetime: DateTime<Local>,
 }
 
+pub fn extract_field_from_annotation(annotation: &String, field: &str) -> Option<String> {
+    let re = Regex::new(&format!(r#"{}: '(?P<value>[^']+)'"#, field)).unwrap();
+    if let Some(caps) = re.captures(annotation) {
+        if let Some(value) = caps.name("value") {
+            return Some(value.as_str().to_string());
+        }
+    }
+    None
+}
+
 pub fn convert_into_annotation(annotation_in_text: &String) -> Annotation {
     // todo: change by extracting data from string
 
@@ -22,20 +32,8 @@ pub fn convert_into_annotation(annotation_in_text: &String) -> Annotation {
     // re.captures(&annotation)
     //     .and_then(|caps| caps.get(1).map(|m| m.as_str().to_string()));
 
-    let extract_uid_regex = regex::Regex::new(
-        r#"\[//\]: # "\{date: '.*?', event: '.*?', uuid: '(?P<uuid>[a-f0-9\-]+)'\}""#,
-    )
-    .unwrap();
-
-    let mut uid = "";
-
-    if let Some(caps) = extract_uid_regex.captures(annotation_in_text) {
-        if let Some(uid_str) = caps.name("uuid") {
-            if let Ok(parsed_uid) = Uuid::parse_str(uid_str.as_str()) {
-                uid = parsed_uid;
-            }
-        }
-    }
+    // todo: remplace
+    let mut uid = Uuid::new_v4();
 
     // extract event
     let event = NotEvent::CreateNot;
@@ -84,4 +82,31 @@ pub fn extract_annotations_from_path(path: PathBuf) -> Vec<Annotation> {
     });
 
     annotations
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn extract_uid_from_annotation() {
+        let annotation = "not:{uid: 'b86bc6ed-50a5-4ef2-bdd3-e17baef11eff', created_at: '2025-08-10 00:51:45 +09:00',  event: 'START_WORK'}".to_string();
+        let uid = super::extract_field_from_annotation(&annotation, "uid");
+        assert_eq!(
+            uid.unwrap().to_string(),
+            "b86bc6ed-50a5-4ef2-bdd3-e17baef11eff"
+        );
+    }
+
+    #[test]
+    fn extract_datetime_from_annotation() {
+        let annotation = "not:{uid: 'b86bc6ed-50a5-4ef2-bdd3-e17baef11eff', created_at: '2025-08-10 00:51:45 +09:00',  event: 'START_WORK'}".to_string();
+        let datetime = super::extract_field_from_annotation(&annotation, "created_at");
+        assert_eq!(datetime.unwrap().to_string(), "2025-08-10 00:51:45 +09:00");
+    }
+
+    #[test]
+    fn extract_event_from_annotation() {
+        let annotation = "not:{uid: 'b86bc6ed-50a5-4ef2-bdd3-e17baef11eff', created_at: '2025-08-10 00:51:45 +09:00',  event: 'START_WORK'}".to_string();
+        let event = super::extract_field_from_annotation(&annotation, "event");
+        assert_eq!(event.unwrap().to_string(), "START_WORK");
+    }
 }
