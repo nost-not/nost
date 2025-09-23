@@ -1,10 +1,14 @@
 use crate::annotation::convert_into_annotation;
+use crate::annotation::extract_annotations_from_path;
+use crate::annotation::filter_annotation_by_events;
+use crate::not::compose_file_path;
 use crate::not::extract_annotations_from_one_file;
 use crate::not::get_not_pathes;
 use crate::not::get_or_create_not;
 
 // use regex::Regex;
 use crate::annotation::Annotation;
+use crate::not::NotEvent;
 use std::collections::HashMap;
 use std::env;
 use std::path::Path;
@@ -30,46 +34,33 @@ pub fn get_salary_currency() -> String {
 
 pub fn compute_work_stats() -> Vec<WorkStats> {
     // get current month path
-    // todo: get current month path without using get or create not
-    let current_not_ref = get_or_create_not(None).unwrap();
-    let current_path = Path::new(&current_not_ref);
-    let month_path = current_path.parent().unwrap().parent().unwrap();
-
-    // extract annotations
-    let pathes = get_not_pathes(current_path.to_path_buf()).unwrap();
-
-    let mut annotations = Vec::new();
-    for path in pathes {
-        let annotations_for_current_file = extract_annotations_from_one_file(&path).unwrap();
-        annotations.extend(annotations_for_current_file);
-    }
-
-    // filter work annotations
-    let mut work_annotations: Vec<String> = annotations
-        .into_iter()
-        .filter(|annotation| annotation.contains("start-work") || annotation.contains("stop-work"))
-        .collect();
-
-    // order the annotations by date
-    // work_annotations.sort_by_key(|annotation| annotation.date);
-
-    // first use a hashmap to store the work stats
-    let mut annotations_hmap: HashMap<String, Annotation> = HashMap::new();
-
-    // compute the work stats
-    // todo: correct here, there is a problem with scope for annotations_hmap.insert
-    work_annotations.iter().for_each(|annotation_text| {
-        // convert string into annotation
-        let annotation = convert_into_annotation(annotation_text);
-        let day_in_string = annotation
-            .datetime
-            .to_string()
-            .split(' ')
-            .next()
-            .unwrap()
-            .to_string();
-        annotations_hmap.insert(day_in_string, annotation);
+    let not_path = env::var("NOST_NOT_PATH").unwrap_or_else(|_| {
+        eprintln!("NOST_NOT_PATH environment variable not set.");
+        panic!("NOST_NOT_PATH not set");
     });
+    let pathes = Path::new(&compose_file_path(&not_path))
+        .parent()
+        .unwrap()
+        .to_path_buf();
+
+    // extract annotations and filter work annotations
+    let annotations = extract_annotations_from_path(pathes);
+
+    println!("Annotations len: {:?}", &annotations.len());
+    println!("🎨 Annotations: {:?} \n\n", &annotations);
+
+    let work_annotations =
+        filter_annotation_by_events(annotations, vec![NotEvent::StartWork, NotEvent::StopWork]);
+
+    // group annotations by day using a hashmap
+    let mut annotations_hmap: HashMap<String, Vec<Annotation>> = HashMap::new();
+    for annotation in work_annotations {
+        let day = annotation.datetime.format("%Y-%m-%d").to_string();
+        annotations_hmap
+            .entry(day)
+            .or_insert_with(Vec::new)
+            .push(annotation);
+    }
 
     let mut work_stats: Vec<WorkStats> = Vec::new();
     for (day, annotation) in annotations_hmap.iter() {
@@ -87,6 +78,7 @@ pub fn compute_work_stats() -> Vec<WorkStats> {
         });
     }
 
+    println!("Work stats computed: {:?}", work_stats.len());
     work_stats
 }
 

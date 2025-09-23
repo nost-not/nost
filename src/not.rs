@@ -29,7 +29,20 @@ impl fmt::Display for NotEvent {
             NotEvent::StartWork => write!(f, "START_WORK"),
             NotEvent::StopWork => write!(f, "STOP_WORK"),
             NotEvent::CreateNot => write!(f, "CREATE_NOT"),
-            NotEvent::Other(s) => write!(f, "{}", s),
+            NotEvent::Other(_) => Err(fmt::Error),
+        }
+    }
+}
+
+impl std::str::FromStr for NotEvent {
+    type Err = ();
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s {
+            "START_WORK" => Ok(NotEvent::StartWork),
+            "STOP_WORK" => Ok(NotEvent::StopWork),
+            "CREATE_NOT" => Ok(NotEvent::CreateNot),
+            _ => Err(()),
         }
     }
 }
@@ -251,17 +264,6 @@ pub fn create_not(title: Option<String>) -> std::io::Result<String> {
         }
     };
 
-    // add the not header metadata
-    // eg: [//]: # "not:{uid: '5ef05459-9af2-4760-8f46-3262b49803fc', created_at: 2025-06-11 01:50:56 +02:00, version: '0.1.0'}"
-    // let not_info = format!(
-    //     "\"not:{{uid: '{}', created_at: {}, version: '0.0.0'}}\"",
-    //     uuid::Uuid::new_v4(),
-    //     get_now_as_string()
-    // );
-    // let header = format!("[//]: # {}\n", not_info);
-    // append(full_not_file_path.clone().into(), &header)
-    //     .expect("🛑 Failed to append not metatadata.");
-
     annotate(
         None,
         None,
@@ -270,9 +272,6 @@ pub fn create_not(title: Option<String>) -> std::io::Result<String> {
         full_not_file_path.as_str(),
     );
 
-    // append the current date as text
-    // let date = Local::now().format("%Y-%m-%d");
-    // let date_line = format!("# {}\n", date);
     let date_line = match env::var("NOST_LANGUAGE")
         .unwrap_or_else(|_| "en".to_string())
         .as_str()
@@ -308,7 +307,7 @@ pub fn annotate(
     };
 
     let content = format!(
-        "\"{{date: '{}', event: '{}', uuid: '{}'}}\"",
+        "\"{{date: '{}', event: '{}', uid: '{}'}}\"",
         date, event, uid
     );
     let annotation = format!("[//]: # {}\n", content);
