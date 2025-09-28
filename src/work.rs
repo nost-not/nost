@@ -32,6 +32,28 @@ pub fn get_salary_currency() -> String {
     })
 }
 
+// for now we only handle pairs of start/stop work
+pub fn compute_work_time(annotations: &Vec<Annotation>) -> i32 {
+    let mut total_time_in_minutes = 0;
+    let mut start_time = None;
+
+    for annotation in annotations {
+        match annotation.event {
+            NotEvent::StartWork => {
+                start_time = Some(annotation.datetime);
+            }
+            NotEvent::StopWork => {
+                if let Some(start) = start_time {
+                    total_time_in_minutes += (annotation.datetime - start).num_minutes() as i32;
+                    start_time = None;
+                }
+            }
+            _ => { /* ignore other events */ }
+        }
+    }
+    total_time_in_minutes
+}
+
 pub fn compute_work_stats() -> Vec<WorkStats> {
     // get current month path
     let not_path = env::var("NOST_NOT_PATH").unwrap_or_else(|_| {
@@ -59,23 +81,16 @@ pub fn compute_work_stats() -> Vec<WorkStats> {
             .push(annotation);
     }
 
+    // compute work time for each day
     let mut work_stats: Vec<WorkStats> = Vec::new();
     for (day, annotation) in annotations_hmap.iter() {
-        let length = 0;
-        // we need to handle the cases where start or stop time is missing
-        // and the cases where there are multiple start or stop times in a day
-        // if let (Some(start), Some(stop)) = (annotation.event, annotation.stop_time) {
-        //     (stop - start) / 60
-        // } else {
-        //     0
-        // };
         work_stats.push(WorkStats {
             day: (day.clone()).to_string(),
-            length,
+            length: compute_work_time(annotation),
         });
     }
 
-    println!("Work stats computed: {:?}", work_stats.len());
+    println!("Work stats computed: {:?}", work_stats);
     work_stats
 }
 
@@ -149,5 +164,27 @@ mod tests {
     fn test_get_salary_currency_env_not_set() {
         env::remove_var("NOST_WORK_CURRENCY");
         assert_eq!(get_salary_currency(), "EUR");
+    }
+
+    #[test]
+    fn test_compute_work_time() {
+        use chrono::{Duration, Local};
+        use uuid::Uuid;
+
+        let start = Local::now();
+        let stop = start + Duration::hours(1);
+        let start_annotation = Annotation {
+            uid: Uuid::new_v4(),
+            event: NotEvent::StartWork,
+            datetime: start,
+        };
+
+        let stop_annotation = Annotation {
+            uid: Uuid::new_v4(),
+            event: NotEvent::StopWork,
+            datetime: stop,
+        };
+        let annotations = vec![start_annotation, stop_annotation];
+        assert_eq!(compute_work_time(&annotations), 60);
     }
 }
