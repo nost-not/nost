@@ -29,11 +29,11 @@ fn main() {
         std::process::exit(0);
     } else if args[1] == "start-work" {
         let not_path = get_or_create_not(None).unwrap();
-        not::annotate(None, None, NotEvent::StartWork, None, &not_path);
+        annotation::annotate(None, None, NotEvent::StartWork, None, &not_path);
         std::process::exit(0);
     } else if args[1] == "stop-work" {
         let not_path = get_or_create_not(None).unwrap();
-        not::annotate(None, None, NotEvent::StopWork, None, &not_path);
+        annotation::annotate(None, None, NotEvent::StopWork, None, &not_path);
         std::process::exit(0);
     } else if args[1] == "work-stats" {
         let stats = work::compute_work_stats();

@@ -46,9 +46,6 @@ pub fn compute_work_stats() -> Vec<WorkStats> {
     // extract annotations and filter work annotations
     let annotations = extract_annotations_from_path(pathes);
 
-    println!("Annotations len: {:?}", &annotations.len());
-    println!("🎨 Annotations: {:?} \n\n", &annotations);
-
     let work_annotations =
         filter_annotation_by_events(annotations, vec![NotEvent::StartWork, NotEvent::StopWork]);
 

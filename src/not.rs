@@ -15,6 +15,8 @@ use std::path::Path;
 use std::path::PathBuf;
 use uuid::Uuid;
 
+use crate::annotation::annotate;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NotEvent {
     StartWork,
@@ -119,7 +121,7 @@ pub fn compose_file_path(base_path: &str) -> String {
 }
 
 pub fn get_now_as_string() -> String {
-    Local::now().format("%Y-%m-%d %H:%M:%S %Z").to_string()
+    Local::now().to_rfc3339()
 }
 
 fn week_of_month() -> u32 {
@@ -287,100 +289,8 @@ pub fn create_not(title: Option<String>) -> std::io::Result<String> {
     Ok(full_not_file_path)
 }
 
-pub fn annotate(
-    option_date: Option<&str>,
-    key: Option<&str>,
-    event: NotEvent,
-    input_uid: Option<&Uuid>,
-    not_path: &str,
-) {
-    let now = get_now_as_string();
-    let date = match option_date {
-        Some(d) => d,
-        None => &now,
-    };
-
-    let new_uid = Uuid::new_v4().to_string();
-    let uid = match input_uid {
-        Some(u) => u.to_string(),
-        None => new_uid,
-    };
-
-    let content = format!(
-        "\"{{date: '{}', event: '{}', uid: '{}'}}\"",
-        date, event, uid
-    );
-    let annotation = format!("[//]: # {}\n", content);
-    append(not_path.into(), &annotation).expect("🛑 Failed to annotate.");
-}
-
 #[cfg(test)]
 mod tests {
-    #[test]
-    fn test_append() {
-        use std::fs;
-        use std::io::Read;
-        use tempfile::tempdir;
-
-        // Create a temporary directory
-        let dir = tempdir().unwrap();
-        let file_path = dir.path().join("test_append.txt");
-
-        // Create the file first
-        fs::File::create(&file_path).unwrap();
-
-        // Call append
-        let content = "Test content generated from test_append test!";
-        super::append(file_path.clone(), content).expect("Failed to append");
-
-        // Read back the content
-        let mut file = fs::File::open(&file_path).unwrap();
-        let mut file_content = String::new();
-        file.read_to_string(&mut file_content).unwrap();
-
-        assert!(file_content.contains(content));
-    }
-
-    #[test]
-    fn test_annotate() {
-        use std::fs;
-        use std::io::Read;
-        use tempfile::tempdir;
-
-        // Create a temporary directory
-        let dir = tempdir().unwrap();
-        let file_path = dir.path().join("test_annotate.txt");
-
-        // Create the file first
-        fs::File::create(&file_path).unwrap();
-
-        // Call annotate
-        let annotation_content = "annotate test content";
-        super::annotate(
-            None,
-            None,
-            crate::not::NotEvent::CreateNot,
-            None,
-            file_path.to_str().unwrap(),
-        );
-
-        // Read back the content
-        let mut file = fs::File::open(&file_path).unwrap();
-        let mut file_content = String::new();
-        file.read_to_string(&mut file_content).unwrap();
-
-        // The annotation should be wrapped as [//]: # "..."
-        let annotation_regex =
-            regex::Regex::new(r#"\[//\]: # "\{date: '.*', event: 'CREATE_NOT', uuid: '.*'\}""#)
-                .unwrap();
-        assert!(
-            file_content
-                .lines()
-                .any(|line| annotation_regex.is_match(line)),
-            "Annotation with expected format not found in file content"
-        );
-    }
-
     #[test]
     fn test_get_not_pathes() {
         use std::fs::{self, File};

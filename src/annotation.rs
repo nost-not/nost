@@ -1,5 +1,7 @@
+use crate::not::append;
 use crate::not::extract_annotations_from_one_file;
 use crate::not::get_not_pathes;
+use crate::not::get_now_as_string;
 use crate::NotEvent;
 use chrono::DateTime;
 use chrono::Local;
@@ -16,6 +18,33 @@ pub struct Annotation {
     pub datetime: DateTime<Local>,
 }
 
+pub fn annotate(
+    option_date: Option<&str>,
+    key: Option<&str>,
+    event: NotEvent,
+    input_uid: Option<&Uuid>,
+    not_path: &str,
+) {
+    let now = get_now_as_string();
+    let date = match option_date {
+        Some(d) => d,
+        None => &now,
+    };
+
+    let new_uid = Uuid::new_v4().to_string();
+    let uid = match input_uid {
+        Some(u) => u.to_string(),
+        None => new_uid,
+    };
+
+    let content = format!(
+        "\"not:{{date:'{}',event:'{}',uid:'{}'}}\"",
+        date, event, uid
+    );
+    let annotation = format!("[//]: # {}\n", content);
+    append(not_path.into(), &annotation).expect("🛑 Failed to annotate.");
+}
+
 pub fn filter_annotation_by_events(
     annotations: Vec<Annotation>,
     event: Vec<NotEvent>,
@@ -27,7 +56,7 @@ pub fn filter_annotation_by_events(
 }
 
 pub fn extract_field_from_annotation(annotation: &String, field: &str) -> Option<String> {
-    let re = Regex::new(&format!(r#"{}: '(?P<value>[^']+)'"#, field)).unwrap();
+    let re = Regex::new(&format!(r#"{}:'(?P<value>[^']+)'"#, field)).unwrap();
     if let Some(caps) = re.captures(annotation) {
         if let Some(value) = caps.name("value") {
             return Some(value.as_str().to_string());
@@ -37,21 +66,21 @@ pub fn extract_field_from_annotation(annotation: &String, field: &str) -> Option
 }
 
 pub fn convert_into_annotation(annotation_in_text: &String) -> Result<Annotation, &str> {
-    // extract uid
-    let mut uid = extract_field_from_annotation(annotation_in_text, "uid")
-        .and_then(|uid_str| Uuid::parse_str(&uid_str).ok())
-        .ok_or("Missing or invalid uid")?;
+    // extract datetime
+    let datetime = extract_field_from_annotation(annotation_in_text, "date")
+        .and_then(|datetime_str| DateTime::parse_from_rfc3339(&datetime_str).ok())
+        .map(|dt| dt.with_timezone(&Local))
+        .ok_or("Missing or invalid date")?;
 
     // extract event
     let event = extract_field_from_annotation(annotation_in_text, "event")
         .and_then(|event_str| NotEvent::from_str(&event_str).ok())
         .ok_or("Missing or invalid event")?;
 
-    // extract datetime
-    let datetime = extract_field_from_annotation(annotation_in_text, "date")
-        .and_then(|datetime_str| DateTime::parse_from_rfc3339(&datetime_str).ok())
-        .map(|dt| dt.with_timezone(&Local))
-        .ok_or("Missing or invalid date")?;
+    // extract uid
+    let mut uid = extract_field_from_annotation(annotation_in_text, "uid")
+        .and_then(|uid_str| Uuid::parse_str(&uid_str).ok())
+        .ok_or("Missing or invalid uid")?;
 
     Ok(Annotation {
         uid,
@@ -86,20 +115,86 @@ pub fn extract_annotations_from_path(path: PathBuf) -> Vec<Annotation> {
     let mut annotations = Vec::new();
 
     filtered_annotations.into_iter().for_each(|annotation| {
-        println!("{}", annotation);
         match convert_into_annotation(&annotation) {
             Ok(annotation_struct) => annotations.push(annotation_struct),
-            Err(e) => eprintln!("Failed to parse annotation: {}", e),
+            Err(e) => eprintln!(
+                "Failed to parse annotation: {}\n Annotation: {}\n",
+                e, annotation
+            ),
         }
     });
-
-    println!("Extracted {:?} annotations", &annotations.len());
 
     annotations
 }
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn test_append() {
+        use std::fs;
+        use std::io::Read;
+        use tempfile::tempdir;
+
+        // Create a temporary directory
+        let dir = tempdir().unwrap();
+        let file_path = dir.path().join("test_append.txt");
+
+        // Create the file first
+        fs::File::create(&file_path).unwrap();
+
+        // Call append
+        let content = "Test content generated from test_append test!";
+        super::append(file_path.clone(), content).expect("Failed to append");
+
+        // Read back the content
+        let mut file = fs::File::open(&file_path).unwrap();
+        let mut file_content = String::new();
+        file.read_to_string(&mut file_content).unwrap();
+
+        assert!(file_content.contains(content));
+    }
+
+    #[test]
+    fn test_annotate() {
+        use std::fs;
+        use std::io::Read;
+        use tempfile::tempdir;
+
+        // Create a temporary directory
+        let dir = tempdir().unwrap();
+        let file_path = dir.path().join("test_annotate.txt");
+
+        // Create the file first
+        fs::File::create(&file_path).unwrap();
+
+        // Call annotate
+        let annotation_content = "annotate test content";
+        super::annotate(
+            None,
+            None,
+            crate::not::NotEvent::CreateNot,
+            None,
+            file_path.to_str().unwrap(),
+        );
+
+        // Read back the content
+        let mut file = fs::File::open(&file_path).unwrap();
+        let mut file_content = String::new();
+        file.read_to_string(&mut file_content).unwrap();
+
+        // The annotation should be wrapped as [//]: # "..."
+        let annotation_regex =
+            regex::Regex::new(r#"\[//\]: # "not:\{date:'.*',event:'CREATE_NOT',uid:'.*'\}""#)
+                .unwrap();
+        assert!(
+            file_content
+                .lines()
+                .any(|line| annotation_regex.is_match(line)),
+            "Annotation with expected format not found in file content"
+        );
+    }
+
     #[test]
     fn extract_uid_from_annotation() {
         let annotation = "not:{uid: 'b86bc6ed-50a5-4ef2-bdd3-e17baef11eff', created_at: '2025-08-10 00:51:45 +09:00',  event: 'START_WORK'}".to_string();
