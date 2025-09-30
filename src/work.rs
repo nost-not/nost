@@ -19,6 +19,12 @@ pub struct WorkStats {
     pub length: i32, // in minutes
 }
 
+#[derive(Debug)]
+pub struct MonthlyWorkStats {
+    pub total_duration_in_minutes: i32,
+    pub total_work_days: i32,
+    pub work_stats: Vec<WorkStats>,
+}
 pub fn get_salary() -> String {
     env::var("NOST_WORK_SALARY").unwrap_or_else(|_| {
         eprintln!("NOST_WORK_SALARY environment variable not set.");
@@ -54,7 +60,7 @@ pub fn compute_work_time(annotations: &Vec<Annotation>) -> i32 {
     total_time_in_minutes
 }
 
-pub fn compute_work_stats() -> Vec<WorkStats> {
+pub fn compute_work_stats() -> MonthlyWorkStats {
     // get current month path
     let not_path = env::var("NOST_NOT_PATH").unwrap_or_else(|_| {
         eprintln!("NOST_NOT_PATH environment variable not set.");
@@ -90,11 +96,17 @@ pub fn compute_work_stats() -> Vec<WorkStats> {
         });
     }
 
-    println!("Work stats computed: {:?}", work_stats);
-    work_stats
+    let monthly_stats = MonthlyWorkStats {
+        total_duration_in_minutes: 0,
+        total_work_days: work_stats.len() as i32,
+        work_stats,
+    };
+
+    println!("Work stats computed: {:?}", monthly_stats);
+    monthly_stats
 }
 
-pub fn display_work_stats(stats: Vec<WorkStats>) {
+pub fn display_work_stats(stats: MonthlyWorkStats) {
     // todo: implement this function to display work stats
 }
 
