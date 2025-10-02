@@ -89,9 +89,16 @@ pub fn convert_into_annotation(annotation_in_text: &String) -> Result<Annotation
     })
 }
 
-pub fn extract_annotations_from_path(path: PathBuf) -> Vec<Annotation> {
+pub fn extract_annotations_from_path(path: PathBuf) -> Result<Vec<Annotation>, std::io::Error> {
     // get all the pathes of the notes of parent path
-    let pathes = get_not_pathes(path).unwrap();
+    // let pathes = get_not_pathes(path).unwrap();
+
+    let pathes = match get_not_pathes(path) {
+        Ok(p) => p,
+        Err(e) => {
+            return Err(e);
+        }
+    };
 
     // get all annotations of the month
     let mut raw_annotations = Vec::new();
@@ -124,7 +131,7 @@ pub fn extract_annotations_from_path(path: PathBuf) -> Vec<Annotation> {
         }
     });
 
-    annotations
+    Ok(annotations)
 }
 
 #[cfg(test)]

@@ -60,7 +60,7 @@ pub fn compute_work_time(annotations: &Vec<Annotation>) -> i32 {
     total_time_in_minutes
 }
 
-pub fn compute_work_stats() -> MonthlyWorkStats {
+pub fn compute_work_stats() -> Result<MonthlyWorkStats, std::io::Error> {
     // get current month path
     let not_path = env::var("NOST_NOT_PATH").unwrap_or_else(|_| {
         eprintln!("NOST_NOT_PATH environment variable not set.");
@@ -72,7 +72,12 @@ pub fn compute_work_stats() -> MonthlyWorkStats {
         .to_path_buf();
 
     // extract annotations and filter work annotations
-    let annotations = extract_annotations_from_path(pathes);
+    let annotations = match extract_annotations_from_path(pathes.clone()) {
+        Ok(a) => a,
+        Err(e) => {
+            return Err(e);
+        }
+    };
 
     let work_annotations =
         filter_annotation_by_events(annotations, vec![NotEvent::StartWork, NotEvent::StopWork]);
@@ -103,7 +108,7 @@ pub fn compute_work_stats() -> MonthlyWorkStats {
     };
 
     println!("Work stats computed: {:?}", monthly_stats);
-    monthly_stats
+    Ok(monthly_stats)
 }
 
 pub fn display_work_stats(stats: MonthlyWorkStats) {

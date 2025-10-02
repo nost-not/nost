@@ -6,6 +6,7 @@ mod not;
 mod work;
 use crate::not::get_or_create_not;
 use crate::not::NotEvent;
+use crate::work::WorkStats;
 
 // todo: give the possibility to create a note for a specific day, eg: 2025-12-31
 // todo: add the templates content to the file
@@ -36,7 +37,14 @@ fn main() {
         annotation::annotate(None, None, NotEvent::StopWork, None, &not_path);
         std::process::exit(0);
     } else if args[1] == "work-stats" {
-        let stats = work::compute_work_stats();
+        let stats = match work::compute_work_stats() {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("💥 Cannot compute stats for the current month:\"{}\".", e);
+                eprintln!("Is there an existing note for this month?");
+                std::process::exit(1);
+            }
+        };
         work::display_work_stats(stats);
         std::process::exit(0);
     } else {
