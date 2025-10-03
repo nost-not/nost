@@ -94,15 +94,18 @@ pub fn compute_work_stats() -> Result<MonthlyWorkStats, std::io::Error> {
 
     // compute work time for each day
     let mut work_stats: Vec<WorkStats> = Vec::new();
+    let mut total_duration = 0;
     for (day, annotation) in annotations_hmap.iter() {
+        let length = compute_work_time(annotation);
         work_stats.push(WorkStats {
             day: (day.clone()).to_string(),
-            length: compute_work_time(annotation),
+            length,
         });
+        total_duration += length;
     }
 
     let monthly_stats = MonthlyWorkStats {
-        total_duration_in_minutes: 0,
+        total_duration_in_minutes: total_duration,
         total_work_days: work_stats.len() as i32,
         work_stats,
     };
@@ -113,44 +116,20 @@ pub fn compute_work_stats() -> Result<MonthlyWorkStats, std::io::Error> {
 
 pub fn display_work_stats(stats: MonthlyWorkStats) {
     // todo: implement this function to display work stats
+    // display for each line the day and the length in hours
+    println!("| Day       | Hours |");
+    println!("|-----------|-------|");
+    for work_stat in stats.work_stats {
+        let hours = work_stat.length as f32 / 60.0;
+        println!("| {} | {:.2} |", work_stat.day, hours);
+    }
+
+    let total_hours = stats.total_duration_in_minutes as f32 / 60.0;
+    println!("| Total     | {:.2} |", total_hours);
+    println!("| Work Days | {}     |", stats.total_work_days);
+
+    // todo: append the stats to the current note file
 }
-
-// todo: to delete after moving in compute works stats
-// pub fn generate_work_stats(path_as_string: &str) -> std::io::Result<String> {
-//     let path = Path::new(path_as_string);
-
-//     // get the current month path
-//     let month_path = path.parent().unwrap().parent().unwrap();
-
-//     println!("Folder path: {}", month_path.display());
-
-//     // get all the path inside the month path
-//     let pathes = get_not_pathes(month_path.to_path_buf()).unwrap();
-
-//     // process the notes
-//     for path in pathes {
-//         let annotations = extract_annotations_from_one_file(&path);
-//         println!("{:?}", annotations);
-//     }
-
-//     // define the stats
-//     let stats_lines = "| 2025/08/12 | 4.5   | 1          |";
-//     let stats = format!(
-//         "\
-// ## Work Stats
-
-// | Day        | Hours | Cumulative |
-// | ---------- | ----- | ---------- |
-// | 2025/08/10 | 4.5   | 1          |
-// | 2025/08/11 | 7     | 2          |
-// {lines}
-// | Total      | 11.5  | 2          |
-// ",
-//         lines = stats_lines
-//     );
-
-//     Ok(stats)
-// }
 
 #[cfg(test)]
 mod tests {
