@@ -1,7 +1,10 @@
 use chrono::Datelike;
 use chrono::Local;
+use regex::Regex;
 use std::env;
+use std::fmt;
 use std::fs::create_dir_all;
+use std::fs::read_dir;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::Error;
@@ -9,6 +12,88 @@ use std::io::Result;
 use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
+
+use crate::annotation::annotate;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NotEvent {
+    StartWork,
+    StopWork,
+    CreateNot,
+}
+
+impl fmt::Display for NotEvent {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            NotEvent::StartWork => write!(f, "START_WORK"),
+            NotEvent::StopWork => write!(f, "STOP_WORK"),
+            NotEvent::CreateNot => write!(f, "CREATE_NOT"),
+        }
+    }
+}
+
+impl std::str::FromStr for NotEvent {
+    type Err = ();
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s {
+            "START_WORK" => Ok(NotEvent::StartWork),
+            "STOP_WORK" => Ok(NotEvent::StopWork),
+            "CREATE_NOT" => Ok(NotEvent::CreateNot),
+            _ => Err(()),
+        }
+    }
+}
+
+pub fn extract_annotations_from_one_file(file_path: &PathBuf) -> Result<Vec<String>> {
+    let content = std::fs::read_to_string(file_path)?;
+    let re = Regex::new(r#"^\[//\]: # "not.*"\s*$"#).unwrap();
+
+    let extracted: Vec<String> = content
+        .lines()
+        .filter_map(|line| {
+            if re.is_match(line) {
+                Some(line.to_string())
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    Ok(extracted)
+}
+
+pub fn get_not_pathes(path: PathBuf) -> Result<Vec<PathBuf>> {
+    let mut files = Vec::new();
+    let mut pathes: Vec<PathBuf> = vec![path];
+
+    let folder_regex = Regex::new(r"^\d+$").unwrap();
+    let file_regex = Regex::new(r".*\d+\.md$").unwrap();
+
+    while let Some(current) = pathes.pop() {
+        match read_dir(&current) {
+            Ok(entries) => {
+                for entry in entries.flatten() {
+                    let current_path = entry.path();
+                    if let Some(name) = current_path.file_name().and_then(|name| name.to_str()) {
+                        if current_path.is_dir() {
+                            if folder_regex.is_match(name) {
+                                pathes.push(current_path);
+                            }
+                        } else if file_regex.is_match(name) {
+                            files.push(current_path);
+                        }
+                    }
+                }
+            }
+            Err(err) => return Err(err),
+        }
+    }
+
+    files.sort();
+
+    Ok(files)
+}
 
 pub fn append(file_path: PathBuf, content: &str) -> Result<()> {
     let mut file = OpenOptions::new().append(true).open(file_path)?;
@@ -28,11 +113,11 @@ pub fn compose_file_path(base_path: &str) -> String {
     let year = today.year();
     let month = format!("{:02}", today.month());
 
-    format!("{}/temp/{}/{}/{}/", base_path, year, month, week_of_month())
+    format!("{}/{}/{}/{}/", base_path, year, month, week_of_month())
 }
 
 pub fn get_now_as_string() -> String {
-    Local::now().format("%Y-%m-%d %H:%M:%S %Z").to_string()
+    Local::now().to_rfc3339()
 }
 
 fn week_of_month() -> u32 {
@@ -177,20 +262,8 @@ pub fn create_not(title: Option<String>) -> std::io::Result<String> {
         }
     };
 
-    // add the not header metadata
-    // eg: [//]: # "not:{uid: '5ef05459-9af2-4760-8f46-3262b49803fc', created_at: 2025-06-11 01:50:56 +02:00, version: '0.1.0'}"
-    let not_info = format!(
-        "\"not:{{uid: '{}', created_at: {}, version: '0.0.0'}}\"",
-        uuid::Uuid::new_v4(),
-        get_now_as_string()
-    );
-    let header = format!("[//]: # {}\n", not_info);
-    append(full_not_file_path.clone().into(), &header)
-        .expect("🛑 Failed to append not metatadata.");
+    annotate(None, NotEvent::CreateNot, None, full_not_file_path.as_str());
 
-    // append the current date as text
-    // let date = Local::now().format("%Y-%m-%d");
-    // let date_line = format!("# {}\n", date);
     let date_line = match env::var("NOST_LANGUAGE")
         .unwrap_or_else(|_| "en".to_string())
         .as_str()
@@ -206,62 +279,44 @@ pub fn create_not(title: Option<String>) -> std::io::Result<String> {
     Ok(full_not_file_path)
 }
 
-pub fn annotate(content: &str, not_path: &str) {
-    let annotation = format!("[//]: # {}\n", content);
-    append(not_path.into(), &annotation).expect("🛑 Failed to annotate.");
-}
-
 #[cfg(test)]
 mod tests {
     #[test]
-    fn test_append() {
-        use std::fs;
-        use std::io::Read;
+    fn test_get_not_pathes() {
+        use std::fs::{self, File};
+        use std::io::Write;
         use tempfile::tempdir;
 
         // Create a temporary directory
         let dir = tempdir().unwrap();
-        let file_path = dir.path().join("test_append.txt");
+        let base = dir.path();
 
-        // Create the file first
-        fs::File::create(&file_path).unwrap();
+        // Create subfolders and files
+        let week_folder = base.join("1");
+        fs::create_dir(&week_folder).unwrap();
 
-        // Call append
-        let content = "Test content generated from test_append test!";
-        super::append(file_path.clone(), content).expect("Failed to append");
+        let file1 = week_folder.join("01.md");
+        let file2 = week_folder.join("02.md");
+        let file3 = week_folder.join("not_a_note.txt");
 
-        // Read back the content
-        let mut file = fs::File::open(&file_path).unwrap();
-        let mut file_content = String::new();
-        file.read_to_string(&mut file_content).unwrap();
+        File::create(&file1).unwrap().write_all(b"note 1").unwrap();
+        File::create(&file2).unwrap().write_all(b"note 2").unwrap();
+        File::create(&file3)
+            .unwrap()
+            .write_all(b"not a note")
+            .unwrap();
 
-        assert!(file_content.contains(content));
-    }
+        // Should find only .md files in numeric folders
+        let found = super::get_not_pathes(base.to_path_buf()).unwrap();
 
-    #[test]
-    fn test_annotate() {
-        use std::fs;
-        use std::io::Read;
-        use tempfile::tempdir;
+        let found_files: Vec<_> = found
+            .iter()
+            .map(|p| p.file_name().unwrap().to_str().unwrap().to_string())
+            .collect();
 
-        // Create a temporary directory
-        let dir = tempdir().unwrap();
-        let file_path = dir.path().join("test_annotate.txt");
-
-        // Create the file first
-        fs::File::create(&file_path).unwrap();
-
-        // Call annotate
-        let annotation_content = "annotate test content";
-        super::annotate(annotation_content, file_path.to_str().unwrap());
-
-        // Read back the content
-        let mut file = fs::File::open(&file_path).unwrap();
-        let mut file_content = String::new();
-        file.read_to_string(&mut file_content).unwrap();
-
-        // The annotation should be wrapped as [//]: # "..."
-        let expected = format!("[//]: # {}\n", annotation_content);
-        assert!(file_content.contains(&expected));
+        assert!(found_files.contains(&"01.md".to_string()));
+        assert!(found_files.contains(&"02.md".to_string()));
+        assert!(!found_files.contains(&"not_a_note.txt".to_string()));
+        assert_eq!(found_files.len(), 2);
     }
 }

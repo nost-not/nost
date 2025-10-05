@@ -1,10 +1,11 @@
 use dotenv::dotenv;
 use std::env;
 
+mod annotation;
 mod not;
 mod work;
-use crate::not::get_now_as_string;
 use crate::not::get_or_create_not;
+use crate::not::NotEvent;
 
 // todo: give the possibility to create a note for a specific day, eg: 2025-12-31
 // todo: add the templates content to the file
@@ -18,7 +19,7 @@ fn main() {
         std::process::exit(1);
     }
 
-    if args[1] == "not" {
+    if args[1] == "new" || args[1] == "n" {
         if args.len() > 2 {
             println!("Creating not with title: {}", args[1]);
             not::create_not(Some(args[2].clone())).unwrap();
@@ -26,20 +27,24 @@ fn main() {
             not::create_not(None).unwrap();
         }
         std::process::exit(0);
-    } else if args[1] == "start-work" {
+    } else if args[1] == "start-work" || args[1] == "sw" {
         let not_path = get_or_create_not(None).unwrap();
-        let annotation = format!(
-            "not: {{start-work: '{}', salary: '{}', salary-currency: '{}'}}",
-            get_now_as_string(),
-            work::get_salary(),
-            work::get_salary_currency()
-        );
-        not::annotate(&annotation, &not_path);
+        annotation::annotate(None, NotEvent::StartWork, None, &not_path);
         std::process::exit(0);
-    } else if args[1] == "stop-work" {
+    } else if args[1] == "stop-work" || args[1] == "ew" {
         let not_path = get_or_create_not(None).unwrap();
-        let annotation = format!("not: {{stop-work: '{}'}}", get_now_as_string());
-        not::annotate(&annotation, &not_path);
+        annotation::annotate(None, NotEvent::StopWork, None, &not_path);
+        std::process::exit(0);
+    } else if args[1] == "work-stats" || args[1] == "ws" {
+        let stats = match work::compute_work_stats() {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("💥 Cannot compute stats for the current month:\"{}\".", e);
+                eprintln!("Is there an existing note for this month?");
+                std::process::exit(1);
+            }
+        };
+        work::display_work_stats(stats);
         std::process::exit(0);
     } else {
         eprintln!("Unknown command: \"{}\"", args[1]);
