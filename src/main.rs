@@ -6,7 +6,6 @@ mod not;
 mod work;
 use crate::not::get_or_create_not;
 use crate::not::NotEvent;
-use crate::work::WorkStats;
 
 // todo: give the possibility to create a note for a specific day, eg: 2025-12-31
 // todo: add the templates content to the file
@@ -30,11 +29,11 @@ fn main() {
         std::process::exit(0);
     } else if args[1] == "start-work" {
         let not_path = get_or_create_not(None).unwrap();
-        annotation::annotate(None, None, NotEvent::StartWork, None, &not_path);
+        annotation::annotate(None, NotEvent::StartWork, None, &not_path);
         std::process::exit(0);
     } else if args[1] == "stop-work" {
         let not_path = get_or_create_not(None).unwrap();
-        annotation::annotate(None, None, NotEvent::StopWork, None, &not_path);
+        annotation::annotate(None, NotEvent::StopWork, None, &not_path);
         std::process::exit(0);
     } else if args[1] == "work-stats" {
         let stats = match work::compute_work_stats() {

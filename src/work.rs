@@ -1,10 +1,6 @@
-use crate::annotation::convert_into_annotation;
 use crate::annotation::extract_annotations_from_path;
 use crate::annotation::filter_annotation_by_events;
 use crate::not::compose_file_path;
-use crate::not::extract_annotations_from_one_file;
-use crate::not::get_not_pathes;
-use crate::not::get_or_create_not;
 
 // use regex::Regex;
 use crate::annotation::Annotation;
@@ -86,10 +82,7 @@ pub fn compute_work_stats() -> Result<MonthlyWorkStats, std::io::Error> {
     let mut annotations_hmap: HashMap<String, Vec<Annotation>> = HashMap::new();
     for annotation in work_annotations {
         let day = annotation.datetime.format("%Y-%m-%d").to_string();
-        annotations_hmap
-            .entry(day)
-            .or_insert_with(Vec::new)
-            .push(annotation);
+        annotations_hmap.entry(day).or_default().push(annotation);
     }
 
     // compute work time for each day
@@ -127,6 +120,16 @@ pub fn display_work_stats(stats: MonthlyWorkStats) {
     let total_hours = stats.total_duration_in_minutes as f32 / 60.0;
     println!("| Total     | {:.2} |", total_hours);
     println!("| Work Days | {}     |", stats.total_work_days);
+
+    let daily_rate: f32 = get_salary().parse().unwrap_or(0.0);
+    let currency = get_salary_currency();
+    let salary = if stats.total_work_days > 0 {
+        daily_rate * stats.total_work_days as f32
+    } else {
+        0.0
+    };
+
+    println!("| Salary    | {:.2} {} |", salary, currency);
 
     // todo: append the stats to the current note file
 }
@@ -170,13 +173,13 @@ mod tests {
         let start = Local::now();
         let stop = start + Duration::hours(1);
         let start_annotation = Annotation {
-            uid: Uuid::new_v4(),
+            _uid: Uuid::new_v4(),
             event: NotEvent::StartWork,
             datetime: start,
         };
 
         let stop_annotation = Annotation {
-            uid: Uuid::new_v4(),
+            _uid: Uuid::new_v4(),
             event: NotEvent::StopWork,
             datetime: stop,
         };

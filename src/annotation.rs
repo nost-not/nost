@@ -6,21 +6,19 @@ use crate::NotEvent;
 use chrono::DateTime;
 use chrono::Local;
 use regex::Regex;
-use std::path;
 use std::path::PathBuf;
 use std::str::FromStr;
 use uuid::Uuid;
 
 #[derive(Debug)]
 pub struct Annotation {
-    pub uid: Uuid,
+    pub _uid: Uuid,
     pub event: NotEvent,
     pub datetime: DateTime<Local>,
 }
 
 pub fn annotate(
     option_date: Option<&str>,
-    key: Option<&str>,
     event: NotEvent,
     input_uid: Option<&Uuid>,
     not_path: &str,
@@ -55,7 +53,7 @@ pub fn filter_annotation_by_events(
         .collect()
 }
 
-pub fn extract_field_from_annotation(annotation: &String, field: &str) -> Option<String> {
+pub fn extract_field_from_annotation(annotation: &str, field: &str) -> Option<String> {
     let re = Regex::new(&format!(r#"{}:'(?P<value>[^']+)'"#, field)).unwrap();
     if let Some(caps) = re.captures(annotation) {
         if let Some(value) = caps.name("value") {
@@ -65,7 +63,7 @@ pub fn extract_field_from_annotation(annotation: &String, field: &str) -> Option
     None
 }
 
-pub fn convert_into_annotation(annotation_in_text: &String) -> Result<Annotation, &str> {
+pub fn convert_into_annotation(annotation_in_text: &str) -> Result<Annotation, &str> {
     // extract datetime
     let datetime = extract_field_from_annotation(annotation_in_text, "date")
         .and_then(|datetime_str| DateTime::parse_from_rfc3339(&datetime_str).ok())
@@ -78,12 +76,12 @@ pub fn convert_into_annotation(annotation_in_text: &String) -> Result<Annotation
         .ok_or("Missing or invalid event")?;
 
     // extract uid
-    let mut uid = extract_field_from_annotation(annotation_in_text, "uid")
+    let uid = extract_field_from_annotation(annotation_in_text, "uid")
         .and_then(|uid_str| Uuid::parse_str(&uid_str).ok())
         .ok_or("Missing or invalid uid")?;
 
     Ok(Annotation {
-        uid,
+        _uid: uid,
         event,
         datetime,
     })
@@ -178,7 +176,6 @@ mod tests {
         // Call annotate
         let annotation_content = "annotate test content";
         super::annotate(
-            None,
             None,
             crate::not::NotEvent::CreateNot,
             None,

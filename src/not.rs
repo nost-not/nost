@@ -8,12 +8,10 @@ use std::fs::read_dir;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::Error;
-use std::io::ErrorKind;
 use std::io::Result;
 use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
-use uuid::Uuid;
 
 use crate::annotation::annotate;
 
@@ -22,7 +20,6 @@ pub enum NotEvent {
     StartWork,
     StopWork,
     CreateNot,
-    Other(String),
 }
 
 impl fmt::Display for NotEvent {
@@ -31,7 +28,6 @@ impl fmt::Display for NotEvent {
             NotEvent::StartWork => write!(f, "START_WORK"),
             NotEvent::StopWork => write!(f, "STOP_WORK"),
             NotEvent::CreateNot => write!(f, "CREATE_NOT"),
-            NotEvent::Other(_) => Err(fmt::Error),
         }
     }
 }
@@ -117,7 +113,7 @@ pub fn compose_file_path(base_path: &str) -> String {
     let year = today.year();
     let month = format!("{:02}", today.month());
 
-    format!("{}/temp/{}/{}/{}/", base_path, year, month, week_of_month())
+    format!("{}/{}/{}/{}/", base_path, year, month, week_of_month())
 }
 
 pub fn get_now_as_string() -> String {
@@ -244,10 +240,10 @@ pub fn create_not(title: Option<String>) -> std::io::Result<String> {
 
     // create folders if needed
     if let Err(e) = create_dir_all(&not_file_path) {
-        return Err(Error::new(
-            ErrorKind::Other,
-            format!("🛑 Failed to create directory: {}", e),
-        ));
+        return Err(Error::other(format!(
+            "🛑 Failed to create directory: {}",
+            e
+        )));
     }
 
     // only create the file if it does not exist
@@ -266,13 +262,7 @@ pub fn create_not(title: Option<String>) -> std::io::Result<String> {
         }
     };
 
-    annotate(
-        None,
-        None,
-        NotEvent::CreateNot,
-        None,
-        full_not_file_path.as_str(),
-    );
+    annotate(None, NotEvent::CreateNot, None, full_not_file_path.as_str());
 
     let date_line = match env::var("NOST_LANGUAGE")
         .unwrap_or_else(|_| "en".to_string())
