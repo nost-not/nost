@@ -54,3 +54,41 @@ Linter:
 ```
 cargo fmt -- --check
 ```
+
+## Build the app
+
+Build the app with cargo
+
+```sh
+cargo build --release
+```
+
+In your shell config, add an environment variable with the location of the folder where you want to store your notes.
+
+```sh
+export NOST_NOT_PATH=/home/gaetan/not
+
+```
+
+Optional: add an alias
+
+```sh
+alias nost="/home/gaetan/dev/nost-not/nost/target/release/nost"
+```
+
+## Configure the app
+
+Optional: set an env var for the language
+
+For now, only French (fr) and English (default) are supported
+
+```sh
+NOST_LANGUAGE=fr
+```
+
+For computing work stats, add some env vars:
+
+```sh
+NOST_WORK_SALARY=0
+NOST_WORK_CURRENCY=EUR
+```
