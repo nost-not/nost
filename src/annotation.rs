@@ -174,7 +174,6 @@ mod tests {
         fs::File::create(&file_path).unwrap();
 
         // Call annotate
-        let annotation_content = "annotate test content";
         super::annotate(
             None,
             crate::not::NotEvent::CreateNot,
