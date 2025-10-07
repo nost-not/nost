@@ -31,7 +31,7 @@ fn main() {
         let not_path = get_or_create_not(None).unwrap();
         annotation::annotate(None, NotEvent::StartWork, None, &not_path);
         std::process::exit(0);
-    } else if args[1] == "stop-work" || args[1] == "ew" {
+    } else if args[1] == "end-work" || args[1] == "ew" {
         let not_path = get_or_create_not(None).unwrap();
         annotation::annotate(None, NotEvent::StopWork, None, &not_path);
         std::process::exit(0);

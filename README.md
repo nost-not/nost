@@ -19,6 +19,12 @@ For example, if you add a note on the 6th of June 2025:
 cargo run not
 ```
 
+Or
+
+```
+cargo run n
+```
+
 ## (WIP) Use not for working
 
 Begin a work session:
@@ -27,10 +33,22 @@ Begin a work session:
 cargo run start-work
 ```
 
+Or
+
+```
+cargo run sw
+```
+
 End a work session:
 
 ```
-cargo run stop-work
+cargo run end-work
+```
+
+Or
+
+```
+cargo run ew
 ```
 
 For now, the data is only annotated, but these annotations are not yet used or processed.
