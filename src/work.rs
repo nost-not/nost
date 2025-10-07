@@ -1,13 +1,16 @@
 use crate::annotation::extract_annotations_from_path;
 use crate::annotation::filter_annotation_by_events;
+use crate::not::append;
 use crate::not::compose_file_path;
 
 // use regex::Regex;
 use crate::annotation::Annotation;
+use crate::not::get_or_create_not;
 use crate::not::NotEvent;
 use std::collections::HashMap;
 use std::env;
 use std::path::Path;
+use std::path::PathBuf;
 
 #[derive(Debug)]
 pub struct WorkStats {
@@ -62,6 +65,7 @@ pub fn compute_work_stats() -> Result<MonthlyWorkStats, std::io::Error> {
         eprintln!("NOST_NOT_PATH environment variable not set.");
         panic!("NOST_NOT_PATH not set");
     });
+
     let pathes = Path::new(&compose_file_path(&not_path))
         .parent()
         .unwrap()
@@ -107,19 +111,17 @@ pub fn compute_work_stats() -> Result<MonthlyWorkStats, std::io::Error> {
     Ok(monthly_stats)
 }
 
-pub fn display_work_stats(stats: MonthlyWorkStats) {
-    // todo: implement this function to display work stats
-    // display for each line the day and the length in hours
-    println!("| Day       | Hours |");
-    println!("|-----------|-------|");
+pub fn display_work_stats(stats: MonthlyWorkStats, in_not: bool) {
+    let mut stats_content = format!("\n| Day       | Hours |\n|-----------|-------|\n");
+
     for work_stat in stats.work_stats {
         let hours = work_stat.length as f32 / 60.0;
-        println!("| {} | {:.2} |", work_stat.day, hours);
+        stats_content.push_str(&format!("| {} | {:.2} |\n", work_stat.day, hours));
     }
 
     let total_hours = stats.total_duration_in_minutes as f32 / 60.0;
-    println!("| Total     | {:.2} |", total_hours);
-    println!("| Work Days | {}     |", stats.total_work_days);
+    stats_content.push_str(&format!("| Total     | {:.2} |\n", total_hours));
+    stats_content.push_str(&format!("| Work Days | {}     |\n", stats.total_work_days));
 
     let daily_rate: f32 = get_salary().parse().unwrap_or(0.0);
     let currency = get_salary_currency();
@@ -129,9 +131,15 @@ pub fn display_work_stats(stats: MonthlyWorkStats) {
         0.0
     };
 
-    println!("| Salary    | {:.2} {} |", salary, currency);
+    stats_content.push_str(&format!("| Salary    | {:.2} {} |\n", salary, currency));
 
-    // todo: append the stats to the current note file
+    if in_not {
+        let file_path = get_or_create_not(None).unwrap();
+        let _ = append(PathBuf::from(file_path), &stats_content);
+        println!("Stats appended to the current not.");
+    } else {
+        println!("{}", stats_content);
+    }
 }
 
 #[cfg(test)]
