@@ -1,13 +1,16 @@
 use crate::annotation::extract_annotations_from_path;
 use crate::annotation::filter_annotation_by_events;
+use crate::not::append;
 use crate::not::compose_file_path;
 
 // use regex::Regex;
 use crate::annotation::Annotation;
+use crate::not::get_or_create_not;
 use crate::not::NotEvent;
 use std::collections::HashMap;
 use std::env;
 use std::path::Path;
+use std::path::PathBuf;
 
 #[derive(Debug)]
 pub struct WorkStats {
@@ -62,6 +65,7 @@ pub fn compute_work_stats() -> Result<MonthlyWorkStats, std::io::Error> {
         eprintln!("NOST_NOT_PATH environment variable not set.");
         panic!("NOST_NOT_PATH not set");
     });
+
     let pathes = Path::new(&compose_file_path(&not_path))
         .parent()
         .unwrap()
@@ -107,19 +111,17 @@ pub fn compute_work_stats() -> Result<MonthlyWorkStats, std::io::Error> {
     Ok(monthly_stats)
 }
 
-pub fn display_work_stats(stats: MonthlyWorkStats) {
-    // todo: implement this function to display work stats
-    // display for each line the day and the length in hours
-    println!("| Day       | Hours |");
-    println!("|-----------|-------|");
+pub fn display_work_stats(stats: MonthlyWorkStats, in_not: bool) {
+    let mut stats_content = format!("\n| Day       | Hours |\n|-----------|-------|\n");
+
     for work_stat in stats.work_stats {
         let hours = work_stat.length as f32 / 60.0;
-        println!("| {} | {:.2} |", work_stat.day, hours);
+        stats_content.push_str(&format!("| {} | {:.2} |\n", work_stat.day, hours));
     }
 
     let total_hours = stats.total_duration_in_minutes as f32 / 60.0;
-    println!("| Total     | {:.2} |", total_hours);
-    println!("| Work Days | {}     |", stats.total_work_days);
+    stats_content.push_str(&format!("| Total     | {:.2} |\n", total_hours));
+    stats_content.push_str(&format!("| Work Days | {}     |\n", stats.total_work_days));
 
     let daily_rate: f32 = get_salary().parse().unwrap_or(0.0);
     let currency = get_salary_currency();
@@ -129,9 +131,15 @@ pub fn display_work_stats(stats: MonthlyWorkStats) {
         0.0
     };
 
-    println!("| Salary    | {:.2} {} |", salary, currency);
+    stats_content.push_str(&format!("| Salary    | {:.2} {} |\n", salary, currency));
 
-    // todo: append the stats to the current note file
+    if in_not {
+        let file_path = get_or_create_not(None).unwrap();
+        let _ = append(PathBuf::from(file_path), &stats_content);
+        println!("Stats appended to the current not.");
+    } else {
+        println!("{}", stats_content);
+    }
 }
 
 #[cfg(test)]
@@ -185,5 +193,99 @@ mod tests {
         };
         let annotations = vec![start_annotation, stop_annotation];
         assert_eq!(compute_work_time(&annotations), 60);
+    }
+
+    #[test]
+    fn test_display_work_stats_print_to_stdout() {
+        use gag::BufferRedirect;
+        use std::io::Read;
+
+        // Set environment variables to avoid warning messages in output
+        env::set_var("NOST_WORK_SALARY", "0");
+        env::set_var("NOST_WORK_CURRENCY", "EUR");
+
+        let stats = MonthlyWorkStats {
+            total_duration_in_minutes: 120,
+            total_work_days: 2,
+            work_stats: vec![
+                WorkStats {
+                    day: "2025-09-01".to_string(),
+                    length: 60,
+                },
+                WorkStats {
+                    day: "2025-09-02".to_string(),
+                    length: 60,
+                },
+            ],
+        };
+
+        // Redirect stdout to a buffer
+        let mut buf = Vec::new();
+        let mut redirect = BufferRedirect::stdout().unwrap();
+
+        display_work_stats(stats, false);
+
+        // Read the buffer
+        redirect.read_to_end(&mut buf).unwrap();
+        let output = String::from_utf8_lossy(&buf);
+
+        // Check table header
+        assert!(output.contains("| Day       | Hours |"));
+        // Check for both days
+        assert!(output.contains("| 2025-09-01 | 1.00 |"));
+        assert!(output.contains("| 2025-09-02 | 1.00 |"));
+        // Check for total
+        assert!(output.contains("| Total     | 2.00 |"));
+        // Check for work days
+        assert!(output.contains("| Work Days | 2     |"));
+        // Check for salary (default 0.00 EUR if env not set)
+        assert!(output.contains("| Salary    | 0.00 EUR |"));
+    }
+
+    #[test]
+    fn test_display_work_stats_append_to_temp_file() {
+        use std::fs;
+        use tempfile::tempdir;
+
+        // Create a temporary directory
+        let dir = tempdir().unwrap();
+        std::env::set_var("NOST_NOT_PATH", dir.path().to_str().unwrap());
+
+        // Get the actual file path used by get_or_create_not
+        let file_path = get_or_create_not(None).unwrap();
+        fs::write(&file_path, "").unwrap();
+
+        let stats = MonthlyWorkStats {
+            total_duration_in_minutes: 120,
+            total_work_days: 2,
+            work_stats: vec![
+                WorkStats {
+                    day: "2025-09-01".to_string(),
+                    length: 60,
+                },
+                WorkStats {
+                    day: "2025-09-02".to_string(),
+                    length: 60,
+                },
+            ],
+        };
+
+        // Call the function with in_not = true (should append to the note)
+        display_work_stats(stats, true);
+
+        // Read the file and check that it contains the expected output
+        let content = fs::read_to_string(&file_path).unwrap();
+
+        // Check table header
+        assert!(content.contains("| Day       | Hours |"));
+        // Check for both days
+        assert!(content.contains("| 2025-09-01 | 1.00 |"));
+        assert!(content.contains("| 2025-09-02 | 1.00 |"));
+        // Check for total
+        assert!(content.contains("| Total     | 2.00 |"));
+        // Check for work days
+        assert!(content.contains("| Work Days | 2     |"));
+        // Check for salary (default 0.00 EUR if env not set)
+        assert!(content.contains("| Salary    | 0.00 EUR |"));
     }
 }
