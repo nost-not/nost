@@ -51,7 +51,8 @@ fn main() {
             true
         };
 
-        work::display_work_stats(stats, in_not);
+        let stats_content = work::compose_work_stats(stats);
+        work::display_work_stats(stats_content, in_not);
         std::process::exit(0);
     } else {
         eprintln!("Unknown command: \"{}\"", args[1]);

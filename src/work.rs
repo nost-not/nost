@@ -111,7 +111,7 @@ pub fn compute_work_stats() -> Result<MonthlyWorkStats, std::io::Error> {
     Ok(monthly_stats)
 }
 
-pub fn display_work_stats(stats: MonthlyWorkStats, in_not: bool) {
+pub fn compose_work_stats(stats: MonthlyWorkStats) -> String {
     let mut stats_content = format!("\n| Day       | Hours |\n|-----------|-------|\n");
 
     for work_stat in stats.work_stats {
@@ -132,7 +132,9 @@ pub fn display_work_stats(stats: MonthlyWorkStats, in_not: bool) {
     };
 
     stats_content.push_str(&format!("| Salary    | {:.2} {} |\n", salary, currency));
-
+    stats_content
+}
+pub fn display_work_stats(stats_content: String, in_not: bool) {
     if in_not {
         let file_path = get_or_create_not(None).unwrap();
         let _ = append(PathBuf::from(file_path), &stats_content);
@@ -145,9 +147,9 @@ pub fn display_work_stats(stats: MonthlyWorkStats, in_not: bool) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::env;
 
     #[test]
+    #[serial_test::serial]
     fn test_get_salary_env_set() {
         env::set_var("NOST_WORK_SALARY", "1234");
         assert_eq!(get_salary(), "1234");
@@ -155,12 +157,14 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn test_get_salary_env_not_set() {
         env::remove_var("NOST_WORK_SALARY");
         assert_eq!(get_salary(), "0");
     }
 
     #[test]
+    #[serial_test::serial]
     fn test_get_salary_currency_env_set() {
         env::set_var("NOST_WORK_CURRENCY", "USD");
         assert_eq!(get_salary_currency(), "USD");
@@ -168,12 +172,14 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn test_get_salary_currency_env_not_set() {
         env::remove_var("NOST_WORK_CURRENCY");
         assert_eq!(get_salary_currency(), "EUR");
     }
 
     #[test]
+    #[serial_test::serial]
     fn test_compute_work_time() {
         use chrono::{Duration, Local};
         use uuid::Uuid;
@@ -193,5 +199,35 @@ mod tests {
         };
         let annotations = vec![start_annotation, stop_annotation];
         assert_eq!(compute_work_time(&annotations), 60);
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn test_compose_work_stats() {
+        env::set_var("NOST_WORK_SALARY", "500");
+        env::set_var("NOST_WORK_CURRENCY", "EUR");
+
+        let stats = MonthlyWorkStats {
+            total_duration_in_minutes: 120,
+            total_work_days: 2,
+            work_stats: vec![
+                WorkStats {
+                    day: "2025-09-01".to_string(),
+                    length: 60,
+                },
+                WorkStats {
+                    day: "2025-09-02".to_string(),
+                    length: 60,
+                },
+            ],
+        };
+
+        let content = compose_work_stats(stats);
+        assert!(content.contains("| Day       | Hours |"));
+        assert!(content.contains("| 2025-09-01 | 1.00 |"));
+        assert!(content.contains("| 2025-09-02 | 1.00 |"));
+        assert!(content.contains("| Total     | 2.00 |"));
+        assert!(content.contains("| Work Days | 2     |"));
+        assert!(content.contains("| Salary    | 1000.00 EUR |"));
     }
 }
