@@ -107,6 +107,6 @@ NOST_LANGUAGE=fr
 For computing work stats, add some env vars:
 
 ```sh
-NOST_WORK_SALARY=0
-NOST_WORK_CURRENCY=EUR
+export NOST_WORK_SALARY=0
+export NOST_WORK_CURRENCY=EUR
 ```
