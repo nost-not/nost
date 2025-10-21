@@ -136,6 +136,7 @@ pub fn extract_annotations_from_path(path: PathBuf) -> Result<Vec<Annotation>, s
 mod tests {
 
     #[test]
+    #[serial_test::serial]
     fn test_append() {
         use std::fs;
         use std::io::Read;
@@ -161,6 +162,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn test_annotate() {
         use std::fs;
         use std::io::Read;
@@ -199,6 +201,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn extract_uid_from_annotation() {
         let annotation = "not:{uid:'b86bc6ed-50a5-4ef2-bdd3-e17baef11eff',created_at:'2025-09-29T00:00:43.245684903+02:00',event:'START_WORK'}".to_string();
         let uid = super::extract_field_from_annotation(&annotation, "uid");
@@ -209,6 +212,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn extract_datetime_from_annotation() {
         let annotation = "not:{uid:'b86bc6ed-50a5-4ef2-bdd3-e17baef11eff',created_at:'2025-09-29T00:00:43.245684903+02:00',event:'START_WORK'}".to_string();
         let datetime = super::extract_field_from_annotation(&annotation, "created_at");
@@ -219,6 +223,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn extract_event_from_annotation() {
         let annotation = "not:{uid:'b86bc6ed-50a5-4ef2-bdd3-e17baef11eff',created_at:'2025-09-29T00:00:43.245684903+02:00',event:'START_WORK'}".to_string();
         let event = super::extract_field_from_annotation(&annotation, "event");

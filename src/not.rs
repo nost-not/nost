@@ -282,6 +282,7 @@ pub fn create_not(title: Option<String>) -> std::io::Result<String> {
 #[cfg(test)]
 mod tests {
     #[test]
+    #[serial_test::serial]
     fn test_get_not_pathes() {
         use std::fs::{self, File};
         use std::io::Write;

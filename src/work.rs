@@ -1,13 +1,16 @@
 use crate::annotation::extract_annotations_from_path;
 use crate::annotation::filter_annotation_by_events;
+use crate::not::append;
 use crate::not::compose_file_path;
 
 // use regex::Regex;
 use crate::annotation::Annotation;
+use crate::not::get_or_create_not;
 use crate::not::NotEvent;
 use std::collections::HashMap;
 use std::env;
 use std::path::Path;
+use std::path::PathBuf;
 
 #[derive(Debug)]
 pub struct WorkStats {
@@ -62,6 +65,7 @@ pub fn compute_work_stats() -> Result<MonthlyWorkStats, std::io::Error> {
         eprintln!("NOST_NOT_PATH environment variable not set.");
         panic!("NOST_NOT_PATH not set");
     });
+
     let pathes = Path::new(&compose_file_path(&not_path))
         .parent()
         .unwrap()
@@ -107,19 +111,17 @@ pub fn compute_work_stats() -> Result<MonthlyWorkStats, std::io::Error> {
     Ok(monthly_stats)
 }
 
-pub fn display_work_stats(stats: MonthlyWorkStats) {
-    // todo: implement this function to display work stats
-    // display for each line the day and the length in hours
-    println!("| Day       | Hours |");
-    println!("|-----------|-------|");
+pub fn compose_work_stats(stats: MonthlyWorkStats) -> String {
+    let mut stats_content = "\n| Day       | Hours |\n|-----------|-------|\n".to_string();
+
     for work_stat in stats.work_stats {
         let hours = work_stat.length as f32 / 60.0;
-        println!("| {} | {:.2} |", work_stat.day, hours);
+        stats_content.push_str(&format!("| {} | {:.2} |\n", &work_stat.day, hours));
     }
 
     let total_hours = stats.total_duration_in_minutes as f32 / 60.0;
-    println!("| Total     | {:.2} |", total_hours);
-    println!("| Work Days | {}     |", stats.total_work_days);
+    stats_content.push_str(&format!("| Total     | {:.2} |\n", total_hours));
+    stats_content.push_str(&format!("| Work Days | {}     |\n", stats.total_work_days));
 
     let daily_rate: f32 = get_salary().parse().unwrap_or(0.0);
     let currency = get_salary_currency();
@@ -129,17 +131,25 @@ pub fn display_work_stats(stats: MonthlyWorkStats) {
         0.0
     };
 
-    println!("| Salary    | {:.2} {} |", salary, currency);
-
-    // todo: append the stats to the current note file
+    stats_content.push_str(&format!("| Salary    | {:.2} {} |\n", salary, currency));
+    stats_content
+}
+pub fn display_work_stats(stats_content: String, in_not: bool) {
+    if in_not {
+        let file_path = get_or_create_not(None).unwrap();
+        let _ = append(PathBuf::from(file_path), &stats_content);
+        println!("Stats appended to the current not.");
+    } else {
+        println!("{}", stats_content);
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::env;
 
     #[test]
+    #[serial_test::serial]
     fn test_get_salary_env_set() {
         env::set_var("NOST_WORK_SALARY", "1234");
         assert_eq!(get_salary(), "1234");
@@ -147,12 +157,14 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn test_get_salary_env_not_set() {
         env::remove_var("NOST_WORK_SALARY");
         assert_eq!(get_salary(), "0");
     }
 
     #[test]
+    #[serial_test::serial]
     fn test_get_salary_currency_env_set() {
         env::set_var("NOST_WORK_CURRENCY", "USD");
         assert_eq!(get_salary_currency(), "USD");
@@ -160,12 +172,14 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn test_get_salary_currency_env_not_set() {
         env::remove_var("NOST_WORK_CURRENCY");
         assert_eq!(get_salary_currency(), "EUR");
     }
 
     #[test]
+    #[serial_test::serial]
     fn test_compute_work_time() {
         use chrono::{Duration, Local};
         use uuid::Uuid;
@@ -185,5 +199,35 @@ mod tests {
         };
         let annotations = vec![start_annotation, stop_annotation];
         assert_eq!(compute_work_time(&annotations), 60);
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn test_compose_work_stats() {
+        env::set_var("NOST_WORK_SALARY", "500");
+        env::set_var("NOST_WORK_CURRENCY", "EUR");
+
+        let stats = MonthlyWorkStats {
+            total_duration_in_minutes: 120,
+            total_work_days: 2,
+            work_stats: vec![
+                WorkStats {
+                    day: "2025-09-01".to_string(),
+                    length: 60,
+                },
+                WorkStats {
+                    day: "2025-09-02".to_string(),
+                    length: 60,
+                },
+            ],
+        };
+
+        let content = compose_work_stats(stats);
+        assert!(content.contains("| Day       | Hours |"));
+        assert!(content.contains("| 2025-09-01 | 1.00 |"));
+        assert!(content.contains("| 2025-09-02 | 1.00 |"));
+        assert!(content.contains("| Total     | 2.00 |"));
+        assert!(content.contains("| Work Days | 2     |"));
+        assert!(content.contains("| Salary    | 1000.00 EUR |"));
     }
 }

@@ -44,7 +44,15 @@ fn main() {
                 std::process::exit(1);
             }
         };
-        work::display_work_stats(stats);
+
+        let in_not = if args.len() > 2 {
+            matches!(args[2].to_lowercase().as_str(), "true" | "1" | "yes" | "y")
+        } else {
+            true
+        };
+
+        let stats_content = work::compose_work_stats(stats);
+        work::display_work_stats(stats_content, in_not);
         std::process::exit(0);
     } else {
         eprintln!("Unknown command: \"{}\"", args[1]);
