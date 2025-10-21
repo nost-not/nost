@@ -112,11 +112,11 @@ pub fn compute_work_stats() -> Result<MonthlyWorkStats, std::io::Error> {
 }
 
 pub fn compose_work_stats(stats: MonthlyWorkStats) -> String {
-    let mut stats_content = format!("\n| Day       | Hours |\n|-----------|-------|\n");
+    let mut stats_content = "\n| Day       | Hours |\n|-----------|-------|\n".to_string();
 
     for work_stat in stats.work_stats {
         let hours = work_stat.length as f32 / 60.0;
-        stats_content.push_str(&format!("| {} | {:.2} |\n", work_stat.day, hours));
+        stats_content.push_str(&format!("| {} | {:.2} |\n", &work_stat.day, hours));
     }
 
     let total_hours = stats.total_duration_in_minutes as f32 / 60.0;
