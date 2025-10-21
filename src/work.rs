@@ -114,7 +114,11 @@ pub fn compute_work_stats() -> Result<MonthlyWorkStats, std::io::Error> {
 pub fn compose_work_stats(stats: MonthlyWorkStats) -> String {
     let mut stats_content = "\n| Day       | Hours |\n|-----------|-------|\n".to_string();
 
-    for work_stat in stats.work_stats {
+    // Sort work_stats alphabetically by day
+    let mut sorted_stats = stats.work_stats;
+    sorted_stats.sort_by(|a, b| a.day.cmp(&b.day));
+
+    for work_stat in sorted_stats {
         let hours = work_stat.length as f32 / 60.0;
         stats_content.push_str(&format!("| {} | {:.2} |\n", &work_stat.day, hours));
     }
