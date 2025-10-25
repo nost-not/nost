@@ -37,7 +37,6 @@ pub fn get_salary_currency() -> String {
     })
 }
 
-// for now we only handle pairs of start/stop work
 pub fn compute_work_time(annotations: &Vec<Annotation>) -> i32 {
     let mut total_time_in_minutes = 0;
     let mut start_time = None;
@@ -138,6 +137,7 @@ pub fn compose_work_stats(stats: MonthlyWorkStats) -> String {
     stats_content.push_str(&format!("| Salary    | {:.2} {} |\n", salary, currency));
     stats_content
 }
+
 pub fn display_work_stats(stats_content: String, in_not: bool) {
     if in_not {
         let file_path = get_or_create_not(None).unwrap();
