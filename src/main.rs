@@ -48,7 +48,7 @@ fn main() {
         let in_not = if args.len() > 2 {
             matches!(args[2].to_lowercase().as_str(), "true" | "1" | "yes" | "y")
         } else {
-            true
+            false
         };
 
         let stats_content = work::compose_work_stats(stats);
