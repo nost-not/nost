@@ -108,7 +108,7 @@ pub fn compute_work_stats() -> Result<MonthlyWorkStats, std::io::Error> {
         work_stats,
     };
 
-    println!("Work stats computed: {:?}", monthly_stats);
+    log::info!("Work stats computed: {:?}", monthly_stats);
     Ok(monthly_stats)
 }
 
