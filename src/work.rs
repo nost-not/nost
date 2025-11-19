@@ -12,6 +12,8 @@ use std::env;
 use std::path::Path;
 use std::path::PathBuf;
 
+use chrono::Datelike;
+
 #[derive(Debug)]
 pub struct WorkStats {
     pub day: String, // in format "YYYY-MM-DD"
@@ -111,19 +113,43 @@ pub fn compute_work_stats() -> Result<MonthlyWorkStats, std::io::Error> {
 }
 
 pub fn compose_work_stats(stats: MonthlyWorkStats) -> String {
-    let mut stats_content = "\n| Day       | Hours |\n|-----------|-------|\n".to_string();
+    let header =
+        "\n| Day | Date       | Hours | Acc |\n|-----|------------|-------|-------|\n".to_string();
+    let mut stats_content: String = String::new();
 
     // Sort work_stats alphabetically by day
     let mut sorted_stats = stats.work_stats;
     sorted_stats.sort_by(|a, b| a.day.cmp(&b.day));
 
+    let mut current_week = None;
+    let mut cumulative_week_hours = 0.0;
+
     for work_stat in sorted_stats {
+        let date = chrono::NaiveDate::parse_from_str(&work_stat.day, "%Y-%m-%d").unwrap();
+        let weekday = date.weekday();
+        let week = date.iso_week().week();
+        let year = date.iso_week().year();
+
+        if current_week != Some((year, week)) {
+            cumulative_week_hours = 0.0;
+            // todo: add the work day length to the cumulative week hours
+            current_week = Some((year, week));
+        }
+
+        if weekday == chrono::Weekday::Mon {
+            stats_content.push_str(&header);
+        }
+
         let hours = work_stat.length as f32 / 60.0;
-        stats_content.push_str(&format!("| {} | {:.2} |\n", &work_stat.day, hours));
+
+        stats_content.push_str(&format!(
+            "| {} | {} | {:.2} | {:.2} |\n",
+            &weekday, &work_stat.day, hours, cumulative_week_hours
+        ));
     }
 
     let total_hours = stats.total_duration_in_minutes as f32 / 60.0;
-    stats_content.push_str(&format!("| Total     | {:.2} |\n", total_hours));
+    stats_content.push_str(&format!("\n| Total     | {:.2} |\n", total_hours));
     stats_content.push_str(&format!("| Work Days | {}     |\n", stats.total_work_days));
 
     let daily_rate: f32 = get_salary().parse().unwrap_or(0.0);
@@ -227,7 +253,7 @@ mod tests {
         };
 
         let content = compose_work_stats(stats);
-        assert!(content.contains("| Day       | Hours |"));
+        assert!(content.contains("| Day | Date       | Hours | Acc |"));
         assert!(content.contains("| 2025-09-01 | 1.00 |"));
         assert!(content.contains("| 2025-09-02 | 1.00 |"));
         assert!(content.contains("| Total     | 2.00 |"));
