@@ -12,6 +12,8 @@ use crate::not::NotEvent;
 // todo: add a version number for nost and for not
 fn main() {
     dotenv().ok();
+    env_logger::init();
+
     let args: Vec<String> = env::args().collect();
 
     if args.len() <= 1 {

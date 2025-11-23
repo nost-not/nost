@@ -91,7 +91,7 @@ export NOST_NOT_PATH=/home/gaetan/not
 Optional: add an alias
 
 ```sh
-alias nost="/home/gaetan/dev/nost-not/nost/target/release/nost"
+alias nost="RUST_LOG=warn /your/path/for/nost-not/nost/target/release/nost"
 ```
 
 ## Configure the app
