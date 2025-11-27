@@ -8,6 +8,7 @@ use crate::annotation::Annotation;
 use crate::not::get_or_create_not;
 use crate::not::NotEvent;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::env;
 use std::path::Path;
 use std::path::PathBuf;
@@ -21,11 +22,31 @@ pub struct WorkStats {
 }
 
 #[derive(Debug)]
-pub struct MonthlyWorkStats {
+pub struct WorkStatsByWeek {
     pub total_duration_in_minutes: i32,
-    pub total_work_days: i32,
     pub work_stats: Vec<WorkStats>,
 }
+
+#[derive(Debug)]
+pub struct PeriodWorkStats {
+    pub total_duration_in_minutes: i32,
+    pub total_work_days: i32,
+    pub work_stats_by_week: HashMap<WeekId, WorkStatsByWeek>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct WeekId {
+    pub year: i32,
+    pub week: u32,
+}
+
+#[derive(Debug)]
+pub struct WeeklyWorkStats {
+    pub total_duration_in_minutes: i32,
+    pub week_id: WeekId, // (year, week_number)
+    pub work_stats: Vec<WorkStats>,
+}
+
 pub fn get_salary() -> String {
     env::var("NOST_WORK_SALARY").unwrap_or_else(|_| {
         eprintln!("NOST_WORK_SALARY environment variable not set.");
@@ -60,7 +81,7 @@ pub fn compute_work_time(annotations: &Vec<Annotation>) -> i32 {
     total_time_in_minutes
 }
 
-pub fn compute_work_stats() -> Result<MonthlyWorkStats, std::io::Error> {
+pub fn compute_work_stats() -> Result<PeriodWorkStats, std::io::Error> {
     // get current month path
     let not_path = env::var("NOST_NOT_PATH").unwrap_or_else(|_| {
         eprintln!("NOST_NOT_PATH environment variable not set.");
@@ -90,77 +111,119 @@ pub fn compute_work_stats() -> Result<MonthlyWorkStats, std::io::Error> {
         annotations_hmap.entry(day).or_default().push(annotation);
     }
 
-    // compute work time for each day
-    let mut work_stats: Vec<WorkStats> = Vec::new();
+    // prepare work stats by week
+    let mut work_stats_by_week: HashMap<WeekId, WorkStatsByWeek> = HashMap::new();
     let mut total_duration = 0;
+    let mut worked_days_set = HashSet::new();
+
+    // todo: adapt the code to export correct Period work stats
     for (day, annotation) in annotations_hmap.iter() {
         let length = compute_work_time(annotation);
-        work_stats.push(WorkStats {
-            day: (day.clone()).to_string(),
-            length,
-        });
+
+        let date = chrono::NaiveDate::parse_from_str(&day, "%Y-%m-%d").unwrap();
+        let week_id = WeekId {
+            year: date.iso_week().year(),
+            week: date.iso_week().week(),
+        };
+
+        if work_stats_by_week.contains_key(&week_id) {
+            let week_stats = work_stats_by_week.get_mut(&week_id).unwrap();
+            week_stats.total_duration_in_minutes += length;
+            week_stats.work_stats.push(WorkStats {
+                day: day.clone(),
+                length,
+            });
+        } else {
+            work_stats_by_week.insert(
+                week_id,
+                WorkStatsByWeek {
+                    total_duration_in_minutes: length,
+                    work_stats: vec![WorkStats {
+                        day: day.clone(),
+                        length,
+                    }],
+                },
+            );
+        }
+
         total_duration += length;
+
+        // count the total of work days
+        worked_days_set.insert(day.clone());
     }
 
-    let monthly_stats = MonthlyWorkStats {
+    let monthly_stats = PeriodWorkStats {
         total_duration_in_minutes: total_duration,
-        total_work_days: work_stats.len() as i32,
-        work_stats,
+        total_work_days: worked_days_set.len() as i32,
+        work_stats_by_week,
     };
 
-    log::info!("Work stats computed: {:?}", monthly_stats);
+    log::debug!("Work stats computed: {:?}", monthly_stats);
     Ok(monthly_stats)
 }
 
-pub fn compose_work_stats(stats: MonthlyWorkStats) -> String {
+// we need to to parse all work stats by week and then compose the stats per week
+pub fn compose_work_stats(stats: PeriodWorkStats) -> String {
     let header =
         "\n| Day | Date       | Hours | Acc |\n|-----|------------|-------|-------|\n".to_string();
     let mut stats_content: String = String::new();
 
-    // Sort work_stats alphabetically by day
-    let mut sorted_stats = stats.work_stats;
-    sorted_stats.sort_by(|a, b| a.day.cmp(&b.day));
+    // for each week in work_stats_by_week add an header and then the stats
+    for (week_id, week_stats) in stats.work_stats_by_week.iter() {
+        // Add week header
+        stats_content.push_str(&header);
 
-    let mut current_week = None;
-    let mut cumulative_week_hours = 0.0;
+        // todo: sort the days of the week by number ascending (monday to sunday)
 
-    for work_stat in sorted_stats {
-        let date = chrono::NaiveDate::parse_from_str(&work_stat.day, "%Y-%m-%d").unwrap();
-        let weekday = date.weekday();
-        let week = date.iso_week().week();
-        let year = date.iso_week().year();
-
-        if current_week != Some((year, week)) {
-            cumulative_week_hours = 0.0;
-            // todo: add the work day length to the cumulative week hours
-            current_week = Some((year, week));
-        }
-
-        if weekday == chrono::Weekday::Mon {
-            stats_content.push_str(&header);
-        }
-
-        let hours = work_stat.length as f32 / 60.0;
-
-        stats_content.push_str(&format!(
-            "| {} | {} | {:.2} | {:.2} |\n",
-            &weekday, &work_stat.day, hours, cumulative_week_hours
-        ));
+        // todo: continue, we need to print the work stats of the week
     }
 
-    let total_hours = stats.total_duration_in_minutes as f32 / 60.0;
-    stats_content.push_str(&format!("\n| Total     | {:.2} |\n", total_hours));
-    stats_content.push_str(&format!("| Work Days | {}     |\n", stats.total_work_days));
+    print!("{}", stats_content);
 
-    let daily_rate: f32 = get_salary().parse().unwrap_or(0.0);
-    let currency = get_salary_currency();
-    let salary = if stats.total_work_days > 0 {
-        daily_rate * stats.total_work_days as f32
-    } else {
-        0.0
-    };
+    // Sort work_stats alphabetically by day // too early to sort, I need to sort inside each week
+    // let mut sorted_stats = stats.work_stats_by_week;
+    // sorted_stats.sort_by(|a, b| a.day.cmp(&b.day));
 
-    stats_content.push_str(&format!("| Salary    | {:.2} {} |\n", salary, currency));
+    // let mut current_week = None;
+    // let mut cumulative_week_hours = 0.0;
+
+    // for work_stat in sorted_stats {
+    //     let date = chrono::NaiveDate::parse_from_str(&work_stat.day, "%Y-%m-%d").unwrap();
+    //     let weekday = date.weekday();
+    //     let week = date.iso_week().week();
+    //     let year = date.iso_week().year();
+
+    //     if current_week != Some((year, week)) {
+    //         cumulative_week_hours = 0.0;
+    //         // todo: add the work day length to the cumulative week hours
+    //         current_week = Some((year, week));
+    //     }
+
+    //     if weekday == chrono::Weekday::Mon {
+    //         stats_content.push_str(&header);
+    //     }
+
+    //     let hours = work_stat.length as f32 / 60.0;
+
+    //     stats_content.push_str(&format!(
+    //         "| {} | {} | {:.2} | {:.2} |\n",
+    //         &weekday, &work_stat.day, hours, cumulative_week_hours
+    //     ));
+    // }
+
+    // let total_hours = stats.total_duration_in_minutes as f32 / 60.0;
+    // stats_content.push_str(&format!("\n| Total     | {:.2} |\n", total_hours));
+    // stats_content.push_str(&format!("| Work Days | {}     |\n", stats.total_work_days));
+
+    // let daily_rate: f32 = get_salary().parse().unwrap_or(0.0);
+    // let currency = get_salary_currency();
+    // let salary = if stats.total_work_days > 0 {
+    //     daily_rate * stats.total_work_days as f32
+    // } else {
+    //     0.0
+    // };
+
+    // stats_content.push_str(&format!("| Salary    | {:.2} {} |\n", salary, currency));
     stats_content
 }
 
@@ -237,7 +300,7 @@ mod tests {
         env::set_var("NOST_WORK_SALARY", "500");
         env::set_var("NOST_WORK_CURRENCY", "EUR");
 
-        let stats = MonthlyWorkStats {
+        let stats = PeriodWorkStats {
             total_duration_in_minutes: 120,
             total_work_days: 2,
             work_stats: vec![
