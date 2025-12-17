@@ -1,16 +1,13 @@
 use crate::annotation::extract_annotations_from_path;
 use crate::annotation::filter_annotation_by_events;
 use crate::annotation::Annotation;
-use crate::not::append;
 use crate::not::compose_file_path;
-use crate::not::get_or_create_not;
 use crate::not::NotEvent;
 use chrono::Datelike;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::env;
 use std::path::Path;
-use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
 pub struct WorkStats {
@@ -201,16 +198,6 @@ pub fn compose_work_stats(stats: PeriodWorkStats) -> String {
     stats_content.push_str(&format!("| Salary    | {:.2} {} |\n", salary, currency));
 
     stats_content
-}
-
-pub fn display_work_stats(stats_content: String, in_not: bool) {
-    if in_not {
-        let file_path = get_or_create_not(None).unwrap();
-        let _ = append(PathBuf::from(file_path), &stats_content);
-        println!("Stats appended to the current not.");
-    } else {
-        println!("{}", stats_content);
-    }
 }
 
 #[cfg(test)]
