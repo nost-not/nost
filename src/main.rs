@@ -1,9 +1,10 @@
 use dotenv::dotenv;
 use std::env;
-
+use std::path::PathBuf;
 mod annotation;
 mod not;
 mod work;
+use crate::not::append;
 use crate::not::get_or_create_not;
 use crate::not::NotEvent;
 
@@ -54,7 +55,14 @@ fn main() {
         };
 
         let stats_content = work::compose_work_stats(stats);
-        work::display_work_stats(stats_content, in_not);
+
+        if in_not {
+            let file_path = get_or_create_not(None).unwrap();
+            let _ = append(PathBuf::from(file_path), &stats_content);
+            println!("Stats appended to the current not.");
+        } else {
+            println!("{}", stats_content);
+        }
         std::process::exit(0);
     } else {
         eprintln!("Unknown command: \"{}\"", args[1]);
