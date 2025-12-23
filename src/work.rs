@@ -1,7 +1,7 @@
 use crate::annotation::extract_annotations_from_path;
 use crate::annotation::filter_annotation_by_events;
 use crate::annotation::Annotation;
-use crate::not::compose_file_path;
+use crate::not::compose_file_path_for_now;
 use crate::not::NotEvent;
 use chrono::Datelike;
 use std::collections::HashMap;
@@ -12,7 +12,7 @@ use std::path::Path;
 #[derive(Debug, Clone)]
 pub struct WorkStats {
     pub day: String, // in format "YYYY-MM-DD"
-    pub length: i32, // in minutes
+    pub length_in_minutes: i32,
 }
 
 #[derive(Debug, Clone)]
@@ -34,7 +34,8 @@ pub struct WeekId {
     pub week: u32,
 }
 
-pub fn compute_work_time(annotations: &Vec<Annotation>) -> i32 {
+pub fn compute_work_time_from_annotations(annotations: &Vec<Annotation>) -> i32 {
+    log::debug!("Computing work time for annotations: {:?}", annotations);
     let mut total_time_in_minutes = 0;
     let mut start_time = None;
 
@@ -56,18 +57,17 @@ pub fn compute_work_time(annotations: &Vec<Annotation>) -> i32 {
 }
 
 pub fn compute_work_stats() -> Result<PeriodWorkStats, std::io::Error> {
-    // get current month path
+    // get all annotations from NOST_NOT_PATH
     let not_path = env::var("NOST_NOT_PATH").unwrap_or_else(|_| {
         eprintln!("NOST_NOT_PATH environment variable not set.");
         panic!("NOST_NOT_PATH not set");
     });
 
-    let pathes = Path::new(&compose_file_path(&not_path))
+    let pathes = Path::new(&compose_file_path_for_now(&not_path))
         .parent()
         .unwrap()
         .to_path_buf();
 
-    // extract annotations and filter work annotations
     let annotations = match extract_annotations_from_path(pathes.clone()) {
         Ok(a) => a,
         Err(e) => {
@@ -75,16 +75,23 @@ pub fn compute_work_stats() -> Result<PeriodWorkStats, std::io::Error> {
         }
     };
 
+    // filter only work related annotations
     let work_annotations =
         filter_annotation_by_events(annotations, vec![NotEvent::StartWork, NotEvent::StopWork]);
 
-    // group annotations by day using a hashmap
     let mut annotations_hmap: HashMap<String, Vec<Annotation>> = HashMap::new();
-    for annotation in work_annotations {
-        let day = annotation.datetime.format("%Y-%m-%d").to_string();
-        annotations_hmap.entry(day).or_default().push(annotation);
-    }
 
+    // group annotations by workday
+    for annotation in work_annotations {
+        let workday = annotation
+            .workday
+            .clone()
+            .unwrap_or_else(|| annotation.datetime.format("%Y-%m-%d").to_string());
+        annotations_hmap
+            .entry(workday)
+            .or_default()
+            .push(annotation);
+    }
     // prepare work stats by week
     let mut work_stats_by_week: HashMap<WeekId, WorkStatsByWeek> = HashMap::new();
     let mut total_duration = 0;
@@ -92,7 +99,7 @@ pub fn compute_work_stats() -> Result<PeriodWorkStats, std::io::Error> {
 
     // todo: adapt the code to export correct Period work stats
     for (day, annotation) in annotations_hmap.iter() {
-        let length = compute_work_time(annotation);
+        let length_in_minutes = compute_work_time_from_annotations(annotation);
 
         let date = chrono::NaiveDate::parse_from_str(day, "%Y-%m-%d").unwrap();
         let week_id = WeekId {
@@ -102,23 +109,22 @@ pub fn compute_work_stats() -> Result<PeriodWorkStats, std::io::Error> {
 
         if let std::collections::hash_map::Entry::Vacant(e) = work_stats_by_week.entry(week_id) {
             e.insert(WorkStatsByWeek {
-                total_duration_in_minutes: length,
+                total_duration_in_minutes: length_in_minutes,
                 work_stats: vec![WorkStats {
                     day: day.clone(),
-                    length,
+                    length_in_minutes,
                 }],
             });
         } else {
             let week_stats = work_stats_by_week.get_mut(&week_id).unwrap();
-            week_stats.total_duration_in_minutes += length;
+            week_stats.total_duration_in_minutes += length_in_minutes;
             week_stats.work_stats.push(WorkStats {
                 day: day.clone(),
-                length,
+                length_in_minutes,
             });
         }
 
-        total_duration += length;
-
+        total_duration += length_in_minutes;
         // count the total of work days
         worked_days_set.insert(day.clone());
     }
@@ -157,7 +163,7 @@ pub fn compose_work_stats(stats: PeriodWorkStats) -> String {
         for work_stat in sorted_work_stats.iter() {
             let date = chrono::NaiveDate::parse_from_str(&work_stat.day, "%Y-%m-%d").unwrap();
             let weekday = date.weekday();
-            let hours = work_stat.length as f32 / 60.0;
+            let hours = work_stat.length_in_minutes as f32 / 60.0;
             cumulative_week_hours += hours;
 
             stats_content.push_str(&format!(
@@ -208,22 +214,24 @@ mod tests {
 
     #[test]
     #[serial_test::serial]
-    fn test_compute_work_time() {
+    fn test_compute_work_time_from_annotations() {
         let start = Local::now();
         let stop = start + Duration::hours(1);
         let start_annotation = Annotation {
             _uid: Uuid::new_v4(),
             event: NotEvent::StartWork,
             datetime: start,
+            workday: None,
         };
 
         let stop_annotation = Annotation {
             _uid: Uuid::new_v4(),
             event: NotEvent::StopWork,
             datetime: stop,
+            workday: None,
         };
         let annotations = vec![start_annotation, stop_annotation];
-        assert_eq!(compute_work_time(&annotations), 60);
+        assert_eq!(compute_work_time_from_annotations(&annotations), 60);
     }
 
     fn make_annotation(event: NotEvent, datetime: chrono::DateTime<Local>) -> Annotation {
@@ -231,10 +239,11 @@ mod tests {
             _uid: Uuid::new_v4(),
             event,
             datetime,
+            workday: None,
         }
     }
 
-    // todo: check if we really need this function in tests and why not use compute_work_time
+    // todo: check if we really need this function in tests and why not use compute_work_time_from_annotations
     fn compute_work_stats_from_annotations(annotations: Vec<Annotation>) -> PeriodWorkStats {
         // group annotations by day using a hashmap
         let mut annotations_hmap: HashMap<String, Vec<Annotation>> = HashMap::new();
@@ -248,7 +257,7 @@ mod tests {
         let mut worked_days_set = HashSet::new();
 
         for (day, annotation) in annotations_hmap.iter() {
-            let length = compute_work_time(annotation);
+            let length_in_minutes = compute_work_time_from_annotations(annotation);
 
             let date = chrono::NaiveDate::parse_from_str(&day, "%Y-%m-%d").unwrap();
             let week_id = WeekId {
@@ -258,25 +267,25 @@ mod tests {
 
             if work_stats_by_week.contains_key(&week_id) {
                 let week_stats = work_stats_by_week.get_mut(&week_id).unwrap();
-                week_stats.total_duration_in_minutes += length;
+                week_stats.total_duration_in_minutes += length_in_minutes;
                 week_stats.work_stats.push(WorkStats {
                     day: day.clone(),
-                    length,
+                    length_in_minutes,
                 });
             } else {
                 work_stats_by_week.insert(
                     week_id,
                     WorkStatsByWeek {
-                        total_duration_in_minutes: length,
+                        total_duration_in_minutes: length_in_minutes,
                         work_stats: vec![WorkStats {
                             day: day.clone(),
-                            length,
+                            length_in_minutes,
                         }],
                     },
                 );
             }
 
-            total_duration += length;
+            total_duration += length_in_minutes;
             worked_days_set.insert(day.clone());
         }
 
@@ -301,7 +310,7 @@ mod tests {
         assert_eq!(stats.work_stats_by_week.len(), 1);
         let week_stats = stats.work_stats_by_week.values().next().unwrap();
         assert_eq!(week_stats.work_stats.len(), 1);
-        assert_eq!(week_stats.work_stats[0].length, 60);
+        assert_eq!(week_stats.work_stats[0].length_in_minutes, 60);
     }
 
     #[test]
@@ -322,9 +331,13 @@ mod tests {
         assert_eq!(stats.work_stats_by_week.len(), 1);
         let week_stats = stats.work_stats_by_week.values().next().unwrap();
         assert_eq!(week_stats.work_stats.len(), 2);
-        let lengths: Vec<i32> = week_stats.work_stats.iter().map(|ws| ws.length).collect();
-        assert!(lengths.contains(&60));
-        assert!(lengths.contains(&120));
+        let length_in_minutes: Vec<i32> = week_stats
+            .work_stats
+            .iter()
+            .map(|ws| ws.length_in_minutes)
+            .collect();
+        assert!(length_in_minutes.contains(&60));
+        assert!(length_in_minutes.contains(&120));
     }
 
     #[test]

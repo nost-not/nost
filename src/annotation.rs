@@ -15,6 +15,7 @@ pub struct Annotation {
     pub _uid: Uuid,
     pub event: NotEvent,
     pub datetime: DateTime<Local>,
+    pub workday: Option<String>,
 }
 
 pub fn annotate(
@@ -22,6 +23,7 @@ pub fn annotate(
     event: NotEvent,
     input_uid: Option<&Uuid>,
     not_path: &str,
+    workday: Option<&str>,
 ) {
     let now = get_now_as_string();
     let date = match option_date {
@@ -35,10 +37,23 @@ pub fn annotate(
         None => new_uid,
     };
 
-    let content = format!(
-        "\"not:{{date:'{}',event:'{}',uid:'{}'}}\"",
-        date, event, uid
-    );
+    workday.unwrap_or_default();
+
+    let content = if Option::<&str>::is_some(&workday) {
+        format!(
+            "\"not:{{date:'{}',event:'{}',uid:'{}',workday:'{}'}}\"",
+            date,
+            event,
+            uid,
+            workday.unwrap()
+        )
+    } else {
+        format!(
+            "\"not:{{date:'{}',event:'{}',uid:'{}'}}\"",
+            date, event, uid
+        )
+    };
+
     let annotation = format!("[//]: # {}\n", content);
     append(not_path.into(), &annotation).expect("🛑 Failed to annotate.");
 }
@@ -80,17 +95,17 @@ pub fn convert_into_annotation(annotation_in_text: &str) -> Result<Annotation, &
         .and_then(|uid_str| Uuid::parse_str(&uid_str).ok())
         .ok_or("Missing or invalid uid")?;
 
+    let workday = extract_field_from_annotation(annotation_in_text, "workday");
+
     Ok(Annotation {
         _uid: uid,
         event,
         datetime,
+        workday,
     })
 }
 
 pub fn extract_annotations_from_path(path: PathBuf) -> Result<Vec<Annotation>, std::io::Error> {
-    // get all the pathes of the notes of parent path
-    // let pathes = get_not_pathes(path).unwrap();
-
     let pathes = match get_not_pathes(path) {
         Ok(p) => p,
         Err(e) => {
@@ -181,6 +196,7 @@ mod tests {
             crate::not::NotEvent::CreateNot,
             None,
             file_path.to_str().unwrap(),
+            None,
         );
 
         // Read back the content

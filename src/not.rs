@@ -108,8 +108,8 @@ pub fn name_file() -> String {
     file_name.to_string()
 }
 
-pub fn compose_file_path(base_path: &str) -> String {
-    let today = Local::now().date_naive();
+pub fn compose_file_path_for_now(base_path: &str) -> String {
+    let today: chrono::NaiveDate = Local::now().date_naive();
     let year = today.year();
     let month = format!("{:02}", today.month());
 
@@ -202,7 +202,7 @@ pub fn get_or_create_not(title: Option<String>) -> std::io::Result<String> {
                 eprintln!("NOST_NOT_PATH environment variable not set.");
                 panic!("NOST_NOT_PATH not set");
             });
-            let not_file_path = compose_file_path(&not_path);
+            let not_file_path = compose_file_path_for_now(&not_path);
             let not_file_name = name_file();
             let full_not_file_path = format!("{}{}", &not_file_path, not_file_name);
 
@@ -229,7 +229,7 @@ pub fn create_not(title: Option<String>) -> std::io::Result<String> {
 
     println!("Using NOST_NOT_PATH: {}", not_path);
 
-    let not_file_path = compose_file_path(&not_path);
+    let not_file_path = compose_file_path_for_now(&not_path);
 
     let not_file_name = match &title {
         Some(t) => t.clone(), // todo: validate t here
@@ -262,7 +262,13 @@ pub fn create_not(title: Option<String>) -> std::io::Result<String> {
         }
     };
 
-    annotate(None, NotEvent::CreateNot, None, full_not_file_path.as_str());
+    annotate(
+        None,
+        NotEvent::CreateNot,
+        None,
+        full_not_file_path.as_str(),
+        None,
+    );
 
     let date_line = match env::var("NOST_LANGUAGE")
         .unwrap_or_else(|_| "en".to_string())

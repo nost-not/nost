@@ -32,11 +32,35 @@ fn main() {
         std::process::exit(0);
     } else if args[1] == "start-work" || args[1] == "sw" {
         let not_path = get_or_create_not(None).unwrap();
-        annotation::annotate(None, NotEvent::StartWork, None, &not_path);
+        let default_workday;
+        let workday = if args.len() > 2 {
+            if chrono::NaiveDate::parse_from_str(&args[2], "%Y-%m-%d").is_err() {
+                eprintln!("Invalid date format. Please use YYYY-MM-DD.");
+                std::process::exit(1);
+            }
+            Some(args[2].as_str())
+        } else {
+            println!("No date provided, using today's date.");
+            default_workday = chrono::Local::now().format("%Y-%m-%d").to_string();
+            Some(default_workday.as_str())
+        };
+        annotation::annotate(None, NotEvent::StartWork, None, &not_path, workday);
         std::process::exit(0);
     } else if args[1] == "end-work" || args[1] == "ew" {
         let not_path = get_or_create_not(None).unwrap();
-        annotation::annotate(None, NotEvent::StopWork, None, &not_path);
+        let default_workday;
+        let workday = if args.len() > 2 {
+            if chrono::NaiveDate::parse_from_str(&args[2], "%Y-%m-%d").is_err() {
+                eprintln!("Invalid date format. Please use YYYY-MM-DD.");
+                std::process::exit(1);
+            }
+            Some(args[2].as_str())
+        } else {
+            println!("No date provided, using today's date.");
+            default_workday = chrono::Local::now().format("%Y-%m-%d").to_string();
+            Some(default_workday.as_str())
+        };
+        annotation::annotate(None, NotEvent::StopWork, None, &not_path, workday);
         std::process::exit(0);
     } else if args[1] == "work-stats" || args[1] == "ws" {
         let stats = match work::compute_work_stats() {
