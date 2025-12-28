@@ -209,13 +209,14 @@ pub fn compose_work_stats(stats: PeriodWorkStats) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::{Duration, Local, TimeZone};
+    use chrono::{Duration, FixedOffset, TimeZone};
     use uuid::Uuid;
 
     #[test]
     #[serial_test::serial]
     fn test_compute_work_time_from_annotations() {
-        let start = Local::now();
+        let tz = FixedOffset::east_opt(0).unwrap();
+        let start = tz.with_ymd_and_hms(2025, 9, 1, 9, 0, 0).unwrap();
         let stop = start + Duration::hours(1);
         let start_annotation = Annotation {
             _uid: Uuid::new_v4(),
@@ -234,7 +235,7 @@ mod tests {
         assert_eq!(compute_work_time_from_annotations(&annotations), 60);
     }
 
-    fn make_annotation(event: NotEvent, datetime: chrono::DateTime<Local>) -> Annotation {
+    fn make_annotation(event: NotEvent, datetime: chrono::DateTime<FixedOffset>) -> Annotation {
         Annotation {
             _uid: Uuid::new_v4(),
             event,
@@ -298,7 +299,8 @@ mod tests {
 
     #[test]
     fn test_compute_work_stats_single_day() {
-        let start = Local.with_ymd_and_hms(2025, 9, 1, 9, 0, 0).unwrap();
+        let tz = FixedOffset::east_opt(0).unwrap();
+        let start = tz.with_ymd_and_hms(2025, 9, 1, 9, 0, 0).unwrap();
         let stop = start + Duration::hours(1);
         let annotations = vec![
             make_annotation(NotEvent::StartWork, start),
@@ -315,9 +317,10 @@ mod tests {
 
     #[test]
     fn test_compute_work_stats_multiple_days() {
-        let start1 = Local.with_ymd_and_hms(2025, 9, 1, 9, 0, 0).unwrap();
+        let tz = FixedOffset::east_opt(0).unwrap();
+        let start1 = tz.with_ymd_and_hms(2025, 9, 1, 9, 0, 0).unwrap();
         let stop1 = start1 + Duration::hours(1);
-        let start2 = Local.with_ymd_and_hms(2025, 9, 2, 10, 0, 0).unwrap();
+        let start2 = tz.with_ymd_and_hms(2025, 9, 2, 10, 0, 0).unwrap();
         let stop2 = start2 + Duration::hours(2);
         let annotations = vec![
             make_annotation(NotEvent::StartWork, start1),
@@ -342,9 +345,10 @@ mod tests {
 
     #[test]
     fn test_compute_work_stats_multiple_weeks() {
-        let start1 = Local.with_ymd_and_hms(2025, 8, 31, 9, 0, 0).unwrap(); // week 35
+        let tz = FixedOffset::east_opt(0).unwrap();
+        let start1 = tz.with_ymd_and_hms(2025, 8, 31, 9, 0, 0).unwrap(); // week 35
         let stop1 = start1 + Duration::hours(1);
-        let start2 = Local.with_ymd_and_hms(2025, 9, 1, 10, 0, 0).unwrap(); // week 36
+        let start2 = tz.with_ymd_and_hms(2025, 9, 1, 10, 0, 0).unwrap(); // week 36
         let stop2 = start2 + Duration::hours(2);
         let annotations = vec![
             make_annotation(NotEvent::StartWork, start1),
