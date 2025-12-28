@@ -4,7 +4,7 @@ use crate::not::get_not_pathes;
 use crate::not::get_now_as_string;
 use crate::NotEvent;
 use chrono::DateTime;
-use chrono::Local;
+use chrono::FixedOffset;
 use regex::Regex;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -14,7 +14,7 @@ use uuid::Uuid;
 pub struct Annotation {
     pub _uid: Uuid,
     pub event: NotEvent,
-    pub datetime: DateTime<Local>,
+    pub datetime: DateTime<FixedOffset>,
     pub workday: Option<String>,
 }
 
@@ -82,7 +82,6 @@ pub fn convert_into_annotation(annotation_in_text: &str) -> Result<Annotation, &
     // extract datetime
     let datetime = extract_field_from_annotation(annotation_in_text, "date")
         .and_then(|datetime_str| DateTime::parse_from_rfc3339(&datetime_str).ok())
-        .map(|dt| dt.with_timezone(&Local))
         .ok_or("Missing or invalid date")?;
 
     // extract event
@@ -244,5 +243,21 @@ mod tests {
         let annotation = "not:{uid:'b86bc6ed-50a5-4ef2-bdd3-e17baef11eff',created_at:'2025-09-29T00:00:43.245684903+02:00',event:'START_WORK'}".to_string();
         let event = super::extract_field_from_annotation(&annotation, "event");
         assert_eq!(event.unwrap().to_string(), "START_WORK");
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn test_convert_into_annotation() {
+        let raw_annotation = "not:{date:'2025-09-29T00:00:43.245684903+02:00',event:'START_WORK',uid:'b86bc6ed-50a5-4ef2-bdd3-e17baef11eff'}";
+        let annotation = super::convert_into_annotation(raw_annotation).unwrap();
+        assert_eq!(
+            annotation.datetime.to_rfc3339(),
+            "2025-09-29T00:00:43.245684903+02:00"
+        );
+        assert_eq!(annotation.event, crate::not::NotEvent::StartWork);
+        assert_eq!(
+            annotation._uid.to_string(),
+            "b86bc6ed-50a5-4ef2-bdd3-e17baef11eff"
+        );
     }
 }
