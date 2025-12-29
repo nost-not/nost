@@ -113,22 +113,28 @@ pub fn compose_file_path_for_now(base_path: &str) -> String {
     let year = today.year();
     let month = format!("{:02}", today.month());
 
-    format!("{}/{}/{}/{}/", base_path, year, month, week_of_month())
+    format!("{}/{}/{}/{}/", base_path, year, month, get_week_of_month())
 }
 
 pub fn get_now_as_string() -> String {
     Local::now().to_rfc3339()
 }
 
-fn week_of_month() -> u32 {
+fn get_week_of_month() -> u32 {
     let today = chrono::Local::now().date_naive();
+
     // Get the first day of the month
-    let first_day = today.with_day(1).unwrap();
-    // Calculate the week number for today and the first day of the month
-    let week_today = today.iso_week().week();
-    let week_first = first_day.iso_week().week();
-    // Week of month is difference + 1
-    week_today - week_first + 1
+    let first_of_month = chrono::NaiveDate::from_ymd_opt(today.year(), today.month(), 1).unwrap();
+
+    // Get the weekday of the first day (0 = Monday, 6 = Sunday)
+    let first_weekday = first_of_month.weekday().num_days_from_monday();
+
+    // Calculate days since the first Monday of the month
+    // If month starts on Monday (0), offset is 0
+    // If month starts on Tuesday (1), offset is 1, etc.
+    let days_since_first_monday = (today.day() - 1) + first_weekday;
+
+    (days_since_first_monday / 7) + 1
 }
 
 fn get_day_suffix(day: u32) -> &'static str {
