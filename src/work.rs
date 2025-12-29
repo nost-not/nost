@@ -1,9 +1,10 @@
 use crate::annotation::extract_annotations_from_path;
 use crate::annotation::filter_annotation_by_events;
 use crate::annotation::Annotation;
-use crate::not::compose_file_path_for_now;
+use crate::not::compose_file_path_for_month;
 use crate::not::NotEvent;
 use chrono::Datelike;
+use chrono::Local;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::env;
@@ -56,17 +57,31 @@ pub fn compute_work_time_from_annotations(annotations: &Vec<Annotation>) -> i32 
     total_time_in_minutes
 }
 
-pub fn compute_work_stats() -> Result<PeriodWorkStats, std::io::Error> {
+pub fn compute_work_stats(month: Option<&str>) -> Result<PeriodWorkStats, std::io::Error> {
     // get all annotations from NOST_NOT_PATH
     let not_path = env::var("NOST_NOT_PATH").unwrap_or_else(|_| {
         eprintln!("NOST_NOT_PATH environment variable not set.");
         panic!("NOST_NOT_PATH not set");
     });
 
-    let pathes = Path::new(&compose_file_path_for_now(&not_path))
-        .parent()
-        .unwrap()
-        .to_path_buf();
+    // convert month string to chrono::NaiveDate
+    let date = match month {
+        Some(m) => match chrono::NaiveDate::parse_from_str(&format!("{}-01", m), "%Y-%m-%d") {
+            Ok(d) => d,
+            Err(e) => {
+                eprintln!("💥 Invalid month format. Please use YYYY-MM. Error: {}", e);
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    "Invalid month format",
+                ));
+            }
+        },
+        None => Local::now().date_naive(),
+    };
+
+    println!("Computing work stats for month: {}", date.format("%Y-%m"));
+
+    let pathes = Path::new(&compose_file_path_for_month(&not_path, date)).to_path_buf();
 
     let annotations = match extract_annotations_from_path(pathes.clone()) {
         Ok(a) => a,

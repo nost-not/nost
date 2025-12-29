@@ -108,6 +108,13 @@ pub fn name_file() -> String {
     file_name.to_string()
 }
 
+pub fn compose_file_path_for_month(base_path: &str, date: chrono::NaiveDate) -> String {
+    let year = date.year();
+    let month = format!("{:02}", date.month());
+
+    format!("{}/{}/{}/", base_path, year, month)
+}
+
 pub fn compose_file_path_for_now(base_path: &str) -> String {
     let today: chrono::NaiveDate = Local::now().date_naive();
     let year = today.year();
