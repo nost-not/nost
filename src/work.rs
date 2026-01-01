@@ -23,7 +23,7 @@ pub struct WorkStatsByWeek {
 }
 
 #[derive(Debug, Clone)]
-pub struct PeriodWorkStats {
+pub struct MonthlyWorkStats {
     pub total_duration_in_minutes: i32,
     pub total_work_days: i32,
     pub work_stats_by_week: HashMap<WeekId, WorkStatsByWeek>,
@@ -57,7 +57,7 @@ pub fn compute_work_time_from_annotations(annotations: &Vec<Annotation>) -> i32 
     total_time_in_minutes
 }
 
-pub fn compute_work_stats(month: Option<&str>) -> Result<PeriodWorkStats, std::io::Error> {
+pub fn compute_monthly_work_stats(month: Option<&str>) -> Result<MonthlyWorkStats, std::io::Error> {
     // get all annotations from NOST_NOT_PATH
     let not_path = env::var("NOST_NOT_PATH").unwrap_or_else(|_| {
         eprintln!("NOST_NOT_PATH environment variable not set.");
@@ -144,7 +144,7 @@ pub fn compute_work_stats(month: Option<&str>) -> Result<PeriodWorkStats, std::i
         worked_days_set.insert(day.clone());
     }
 
-    let monthly_stats = PeriodWorkStats {
+    let monthly_stats = MonthlyWorkStats {
         total_duration_in_minutes: total_duration,
         total_work_days: worked_days_set.len() as i32,
         work_stats_by_week,
@@ -154,7 +154,7 @@ pub fn compute_work_stats(month: Option<&str>) -> Result<PeriodWorkStats, std::i
     Ok(monthly_stats)
 }
 
-pub fn compose_work_stats(stats: PeriodWorkStats) -> String {
+pub fn compose_monthly_work_stats(stats: MonthlyWorkStats) -> String {
     let header =
         "\n| Day | Date       | Hours | Acc |\n|-----|------------|-------|-----|\n".to_string();
     let mut stats_content: String = String::new();
@@ -260,7 +260,7 @@ mod tests {
     }
 
     // todo: check if we really need this function in tests and why not use compute_work_time_from_annotations
-    fn compute_work_stats_from_annotations(annotations: Vec<Annotation>) -> PeriodWorkStats {
+    fn compute_work_stats_from_annotations(annotations: Vec<Annotation>) -> MonthlyWorkStats {
         // group annotations by day using a hashmap
         let mut annotations_hmap: HashMap<String, Vec<Annotation>> = HashMap::new();
         for annotation in annotations {
@@ -305,7 +305,7 @@ mod tests {
             worked_days_set.insert(day.clone());
         }
 
-        PeriodWorkStats {
+        MonthlyWorkStats {
             total_duration_in_minutes: total_duration,
             total_work_days: worked_days_set.len() as i32,
             work_stats_by_week,

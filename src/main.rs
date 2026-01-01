@@ -93,7 +93,7 @@ fn main() {
         } else {
             None
         };
-        let stats = match work::compute_work_stats(month) {
+        let stats = match work::compute_monthly_work_stats(month) {
             Ok(s) => s,
             Err(e) => {
                 eprintln!("💥 Cannot compute stats for the current month:\"{}\".", e);
@@ -109,7 +109,7 @@ fn main() {
             false
         };
 
-        let stats_content = work::compose_work_stats(stats);
+        let stats_content = work::compose_monthly_work_stats(stats);
 
         if in_not {
             let file_path = get_or_create_not(None).unwrap();
