@@ -1,8 +1,8 @@
-use crate::annotation::extract_annotations_from_path;
-use crate::annotation::filter_annotation_by_events;
-use crate::annotation::Annotation;
-use crate::not::compose_file_path_for_month;
-use crate::not::NotEvent;
+use crate::annotations::extract::extract_annotations_from_path;
+use crate::annotations::filter::filter_annotation_by_events;
+use crate::annotations::models::Annotation;
+use crate::events::models::NotEvent;
+use crate::files::build_paths::build_file_path_for_month;
 use chrono::Datelike;
 use chrono::Local;
 use std::collections::HashMap;
@@ -81,9 +81,9 @@ pub fn compute_monthly_work_stats(month: Option<&str>) -> Result<MonthlyWorkStat
 
     println!("Computing work stats for month: {}", date.format("%Y-%m"));
 
-    let pathes = Path::new(&compose_file_path_for_month(&not_path, date)).to_path_buf();
+    let paths = Path::new(&build_file_path_for_month(&not_path, date)).to_path_buf();
 
-    let annotations = match extract_annotations_from_path(pathes.clone()) {
+    let annotations = match extract_annotations_from_path(paths.clone()) {
         Ok(a) => a,
         Err(e) => {
             return Err(e);
