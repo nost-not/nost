@@ -1,8 +1,8 @@
-use crate::annotation::extract_annotations_from_path;
-use crate::annotation::filter_annotation_by_events;
-use crate::annotation::Annotation;
-use crate::not::compose_file_path_for_month;
-use crate::not::NotEvent;
+use crate::annotations::extractor::extract_annotations_from_path;
+use crate::annotations::filter::filter_annotation_by_events;
+use crate::annotations::models::Annotation;
+use crate::events::models::NotEvent;
+use crate::files::path_builder::compose_file_path_for_month;
 use chrono::Datelike;
 use chrono::Local;
 use std::collections::HashMap;
