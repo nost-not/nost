@@ -37,34 +37,6 @@ pub fn parse_annotation(annotation_in_text: &str) -> Result<Annotation, &str> {
 mod tests {
     use crate::annotations::parse::parse_annotation;
 
-    // todo: move this test where append function is defined
-    #[test]
-    #[serial_test::serial]
-    fn test_append() {
-        use crate::append;
-        use std::fs;
-        use std::io::Read;
-        use tempfile::tempdir;
-
-        // Create a temporary directory
-        let dir = tempdir().unwrap();
-        let file_path = dir.path().join("test_append.txt");
-
-        // Create the file first
-        fs::File::create(&file_path).unwrap();
-
-        // Call append
-        let content = "Test content generated from test_append test!";
-        append(file_path.clone(), content).expect("Failed to append");
-
-        // Read back the content
-        let mut file = fs::File::open(&file_path).unwrap();
-        let mut file_content = String::new();
-        file.read_to_string(&mut file_content).unwrap();
-
-        assert!(file_content.contains(content));
-    }
-
     #[test]
     #[serial_test::serial]
     fn test_parse_annotation() {
