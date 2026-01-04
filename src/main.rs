@@ -1,12 +1,18 @@
 use dotenv::dotenv;
 use std::env;
 use std::path::PathBuf;
-mod annotation;
-mod not;
-mod work;
-use crate::not::append;
-use crate::not::get_or_create_not;
-use crate::not::NotEvent;
+mod annotations;
+mod dates;
+mod events;
+mod files;
+mod nots;
+mod plugins;
+use crate::annotations::annotate::annotate;
+use crate::events::models::NotEvent;
+use crate::files::append::append;
+use crate::nots::create::create_not;
+use crate::nots::get::get_or_create_not;
+use crate::plugins::gdarquie_work::work;
 
 // Validate a string as year-month in format YYYY-MM (01..12)
 fn is_valid_year_month(s: &str) -> bool {
@@ -44,9 +50,9 @@ fn main() {
     if args[1] == "new" || args[1] == "n" {
         if args.len() > 2 {
             println!("Creating not with title: {}", args[1]);
-            not::create_not(Some(args[2].clone())).unwrap();
+            create_not(Some(args[2].clone())).unwrap();
         } else {
-            not::create_not(None).unwrap();
+            create_not(None).unwrap();
         }
         std::process::exit(0);
     } else if args[1] == "start-work" || args[1] == "sw" {
@@ -63,7 +69,7 @@ fn main() {
             default_workday = chrono::Local::now().format("%Y-%m-%d").to_string();
             Some(default_workday.as_str())
         };
-        annotation::annotate(None, NotEvent::StartWork, None, &not_path, workday);
+        annotate(None, NotEvent::StartWork, None, &not_path, workday);
         std::process::exit(0);
     } else if args[1] == "end-work" || args[1] == "ew" {
         let not_path = get_or_create_not(None).unwrap();
@@ -79,7 +85,7 @@ fn main() {
             default_workday = chrono::Local::now().format("%Y-%m-%d").to_string();
             Some(default_workday.as_str())
         };
-        annotation::annotate(None, NotEvent::StopWork, None, &not_path, workday);
+        annotate(None, NotEvent::StopWork, None, &not_path, workday);
         std::process::exit(0);
     } else if args[1] == "work-stats" || args[1] == "ws" {
         // Optional first arg is month in format YYYY-MM
@@ -93,7 +99,7 @@ fn main() {
         } else {
             None
         };
-        let stats = match work::compute_work_stats(month) {
+        let stats = match work::compute_monthly_work_stats(month) {
             Ok(s) => s,
             Err(e) => {
                 eprintln!("💥 Cannot compute stats for the current month:\"{}\".", e);
@@ -109,7 +115,7 @@ fn main() {
             false
         };
 
-        let stats_content = work::compose_work_stats(stats);
+        let stats_content = work::compose_monthly_work_stats(stats);
 
         if in_not {
             let file_path = get_or_create_not(None).unwrap();
