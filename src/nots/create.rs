@@ -1,5 +1,4 @@
 use std::{
-    env,
     fs::{create_dir_all, File},
     io::Error,
     path::Path,
@@ -7,6 +6,7 @@ use std::{
 
 use crate::{
     annotations::annotate::annotate,
+    configurations::get::get_value_from_config,
     dates::get::{get_date_as_text_en, get_date_as_text_fr},
     events::models::NotEvent,
     files::{append::append, build_paths::build_file_path_for_now, name::name},
@@ -14,17 +14,11 @@ use crate::{
 
 pub fn create_not(title: Option<String>) -> std::io::Result<String> {
     // handle paths
-    let not_path = env::var("NOST_NOT_PATH").unwrap_or_else(|_| {
-        eprintln!("NOST_NOT_PATH environment variable not set.");
-        panic!("NOST_NOT_PATH not set");
-    });
-
-    println!("Using NOST_NOT_PATH: {}", not_path);
-
+    let not_path = get_value_from_config("not_path").unwrap();
     let not_file_path = build_file_path_for_now(&not_path);
 
     let not_file_name = match &title {
-        Some(t) => t.clone(), // todo: validate t here
+        Some(file_title) => file_title.clone(), // todo: validate title here
         None => name(),
     };
 
@@ -62,13 +56,11 @@ pub fn create_not(title: Option<String>) -> std::io::Result<String> {
         None,
     );
 
-    let date_line = match env::var("NOST_LANGUAGE")
-        .unwrap_or_else(|_| "en".to_string())
-        .as_str()
-    {
+    let date_line = match get_value_from_config("language").unwrap().as_str() {
         "fr" => get_date_as_text_fr(),
-        _ => get_date_as_text_en(), // default to French
+        _ => get_date_as_text_en(), // default to English
     };
+
     append(full_not_file_path.clone().into(), &date_line)
         .expect("🛑 Failed to append date as text.");
 

@@ -1,5 +1,6 @@
 mod annotations;
 mod commands;
+mod configurations;
 mod dates;
 mod events;
 mod files;
