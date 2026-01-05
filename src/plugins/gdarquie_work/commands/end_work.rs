@@ -16,6 +16,6 @@ pub fn end_work(args: Vec<String>) {
         default_workday = chrono::Local::now().format("%Y-%m-%d").to_string();
         Some(default_workday.as_str())
     };
-    annotate(None, NotEvent::StartWork, None, &not_path, workday);
+    annotate(None, NotEvent::StopWork, None, &not_path, workday);
     std::process::exit(0);
 }
