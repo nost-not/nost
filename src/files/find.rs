@@ -1,8 +1,8 @@
-use std::{fs::read_dir, io::Result, path::PathBuf};
+use std::{env, fs::read_dir, io::Result as IoResult, path::PathBuf};
 
 use regex::Regex;
 
-pub fn get_not_paths(path: PathBuf) -> Result<Vec<PathBuf>> {
+pub fn find_all_not_files(path: PathBuf) -> IoResult<Vec<PathBuf>> {
     let mut files = Vec::new();
     let mut paths: Vec<PathBuf> = vec![path];
 
@@ -34,9 +34,32 @@ pub fn get_not_paths(path: PathBuf) -> Result<Vec<PathBuf>> {
     Ok(files)
 }
 
+pub fn get_current_directory() -> Result<PathBuf, Box<dyn std::error::Error>> {
+    let execution_path = env::current_exe()?;
+    let execution_dir = execution_path
+        .parent()
+        .ok_or("Could not determine executable directory")?;
+    println!("Execution directory: {:?}\n", execution_dir);
+
+    Ok(execution_dir.to_path_buf())
+}
+
+pub fn get_project_root() -> Result<PathBuf, Box<dyn std::error::Error>> {
+    let execution_dir = get_current_directory()?;
+    let target_dir = execution_dir
+        .parent()
+        .ok_or("Could not determine target directory")?;
+    let project_root = target_dir
+        .parent()
+        .ok_or("Could not determine project root")?;
+    println!("Project root: {:?}\n", project_root);
+
+    Ok(project_root.to_path_buf())
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::files::find::get_not_paths;
+    use crate::files::find::find_all_not_files;
 
     #[test]
     #[serial_test::serial]
@@ -65,7 +88,7 @@ mod tests {
             .unwrap();
 
         // Should find only .md files in numeric folders
-        let found = get_not_paths(base.to_path_buf()).unwrap();
+        let found = find_all_not_files(base.to_path_buf()).unwrap();
 
         let found_files: Vec<_> = found
             .iter()

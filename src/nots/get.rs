@@ -1,7 +1,7 @@
+use crate::configurations::get::get_value_from_config;
 use crate::files::build_paths::build_file_path_for_now;
 use crate::files::name::name;
 use crate::nots::create::create_not;
-use std::env;
 
 pub fn get_or_create_not(title: Option<String>) -> std::io::Result<String> {
     // get all existing notes
@@ -11,10 +11,7 @@ pub fn get_or_create_not(title: Option<String>) -> std::io::Result<String> {
             // todo: check if not title is correct
             create_not(Some(title.clone())).unwrap();
 
-            let not_path = env::var("NOST_NOT_PATH").unwrap_or_else(|_| {
-                eprintln!("NOST_NOT_PATH environment variable not set.");
-                panic!("NOST_NOT_PATH not set");
-            });
+            let not_path = get_value_from_config("not_path").unwrap();
             let not_file_path = build_file_path_for_now(&not_path);
             let not_file_name = name();
             let full_not_file_path = format!("{}{}", &not_file_path, not_file_name);

@@ -1,4 +1,4 @@
-use crate::files::find::get_not_paths;
+use crate::files::find::find_all_not_files;
 use crate::{annotations::models::Annotation, annotations::parse::parse_annotation};
 use regex::Regex;
 use std::io::Result;
@@ -15,7 +15,7 @@ pub fn extract_field_from_annotation(annotation: &str, field: &str) -> Option<St
 }
 
 pub fn extract_annotations_from_path(path: PathBuf) -> Result<Vec<Annotation>> {
-    let paths = match get_not_paths(path) {
+    let paths = match find_all_not_files(path) {
         Ok(p) => p,
         Err(e) => {
             return Err(e);

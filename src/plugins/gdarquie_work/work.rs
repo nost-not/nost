@@ -1,6 +1,7 @@
 use crate::annotations::extract::extract_annotations_from_path;
 use crate::annotations::filter::filter_annotation_by_events;
 use crate::annotations::models::Annotation;
+use crate::configurations::get::get_value_from_config;
 use crate::events::models::NotEvent;
 use crate::files::build_paths::build_file_path_for_month;
 use chrono::Datelike;
@@ -59,10 +60,7 @@ pub fn compute_work_time_from_annotations(annotations: &Vec<Annotation>) -> i32 
 
 pub fn compute_monthly_work_stats(month: Option<&str>) -> Result<MonthlyWorkStats, std::io::Error> {
     // get all annotations from NOST_NOT_PATH
-    let not_path = env::var("NOST_NOT_PATH").unwrap_or_else(|_| {
-        eprintln!("NOST_NOT_PATH environment variable not set.");
-        panic!("NOST_NOT_PATH not set");
-    });
+    let not_path = get_value_from_config("not_path").unwrap();
 
     // convert month string to chrono::NaiveDate
     let date = match month {
