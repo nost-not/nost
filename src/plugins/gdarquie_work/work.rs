@@ -59,7 +59,7 @@ pub fn compute_work_time_from_annotations(annotations: &Vec<Annotation>) -> i32 
 }
 
 pub fn compute_monthly_work_stats(month: Option<&str>) -> Result<MonthlyWorkStats, std::io::Error> {
-    // get all annotations from NOST_NOT_PATH
+    // get all annotations from not path
     let not_path = get_value_from_config("not_path").unwrap();
 
     // convert month string to chrono::NaiveDate

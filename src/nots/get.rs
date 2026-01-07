@@ -16,11 +16,6 @@ pub fn get_or_create_not(title: Option<String>) -> std::io::Result<String> {
             let not_file_name = name();
             let full_not_file_path = format!("{}{}", &not_file_path, not_file_name);
 
-            println!(
-                "Using NOST_NOT_PATH in get_or_create_not: {}",
-                full_not_file_path
-            );
-
             Ok(full_not_file_path)
         }
         None => {
