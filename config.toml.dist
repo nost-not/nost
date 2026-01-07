@@ -1,6 +1,4 @@
 not_path=""
 # optionnal, default is 'en', only 'en' and 'fr' are supported for now
 language="en"
-salary=0
-currency="EUR"
 log_level="debug"

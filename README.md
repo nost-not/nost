@@ -73,6 +73,16 @@ Linter:
 cargo fmt -- --check
 ```
 
+## Configure the app
+
+Copy `config.toml.dist` into `config.toml` and update the values. For example:
+
+```toml
+not_path="/home/gaetan/not"
+language="fr"
+log_level="debug"
+```
+
 ## Build the app
 
 Build the app with cargo
@@ -81,28 +91,13 @@ Build the app with cargo
 cargo build --release
 ```
 
-In your shell config, add an environment variable with the location of the folder where you want to store your notes.
-
-```sh
-export NOST_NOT_PATH=/home/gaetan/not
-
-```
-
 Optional: add an alias
 
 ```sh
 alias nost="RUST_LOG=warn /your/path/for/nost-not/nost/target/release/nost"
 ```
 
-## Configure the app
-
-Optional: set an env var for the language
-
-For now, only French (fr) and English (default) are supported
-
-```sh
-NOST_LANGUAGE=fr
-```
+## Work plugin
 
 For computing work stats, add some env vars:
 
