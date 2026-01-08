@@ -4,7 +4,6 @@ mod configurations;
 mod dates;
 mod events;
 mod files;
-mod nots;
 mod plugins;
 use crate::commands::new::new;
 use crate::plugins::gdarquie_work::commands::end_work::end_work;
