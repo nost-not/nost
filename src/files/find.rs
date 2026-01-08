@@ -7,7 +7,7 @@ use std::{env, fs::read_dir, io::Result as IoResult, path::PathBuf};
 
 pub fn find_all_not_files(path: PathBuf) -> IoResult<Vec<PathBuf>> {
     let mut files = Vec::new();
-    let mut paths: Vec<PathBuf> = vec![path];
+    let mut paths = vec![path];
 
     let folder_regex = Regex::new(r"^\d+$").unwrap();
     let file_regex = Regex::new(r".*\d+\.md$").unwrap();
@@ -87,18 +87,6 @@ pub fn get_or_create_not(title: Option<String>) -> std::io::Result<String> {
             let new_not_path = create_not(None);
             Ok(new_not_path.unwrap())
         }
-    }
-}
-
-pub fn find_last_not() -> Option<PathBuf> {
-    let not_path = match get_value_from_config("not_path") {
-        Ok(path) => path,
-        Err(_) => return None,
-    };
-
-    match find_all_not_files(not_path.into()) {
-        Ok(files) => files.last().cloned(),
-        Err(_) => None,
     }
 }
 
