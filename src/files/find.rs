@@ -13,6 +13,7 @@ pub fn find_all_not_files(path: PathBuf) -> IoResult<Vec<PathBuf>> {
     let file_regex = Regex::new(r".*\d+\.md$").unwrap();
 
     while let Some(current) = paths.pop() {
+        // if path is a directory, read its content
         match read_dir(&current) {
             Ok(entries) => {
                 for entry in entries.flatten() {
@@ -28,7 +29,15 @@ pub fn find_all_not_files(path: PathBuf) -> IoResult<Vec<PathBuf>> {
                     }
                 }
             }
-            Err(err) => return Err(err),
+            Err(err) => {
+                // if path is the path of a file, just return it
+                if current.is_file() {
+                    files.push(current);
+                    continue;
+                }
+
+                return Err(err);
+            }
         }
     }
 
@@ -62,7 +71,6 @@ pub fn get_project_root() -> Result<PathBuf, Box<dyn std::error::Error>> {
 
 pub fn get_or_create_not(title: Option<String>) -> std::io::Result<String> {
     // get all existing notes
-
     match title {
         Some(title) => {
             // todo: check if not title is correct
