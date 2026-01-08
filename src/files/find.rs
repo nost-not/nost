@@ -82,6 +82,18 @@ pub fn get_or_create_not(title: Option<String>) -> std::io::Result<String> {
     }
 }
 
+pub fn find_last_not() -> Option<PathBuf> {
+    let not_path = match get_value_from_config("not_path") {
+        Ok(path) => path,
+        Err(_) => return None,
+    };
+
+    match find_all_not_files(not_path.into()) {
+        Ok(files) => files.last().cloned(),
+        Err(_) => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::files::find::find_all_not_files;
@@ -124,5 +136,52 @@ mod tests {
         assert!(found_files.contains(&"02.md".to_string()));
         assert!(!found_files.contains(&"not_a_note.txt".to_string()));
         assert_eq!(found_files.len(), 2);
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn test_find_last_not() {
+        use std::fs::{self, File};
+        use std::io::Write;
+        use tempfile::tempdir;
+
+        // Create a temporary directory
+        let dir = tempdir().unwrap();
+        let base = dir.path();
+
+        // Create nested folders and files to mimic note structure
+        let week_folder = base.join("1");
+        fs::create_dir(&week_folder).unwrap();
+
+        let file1 = week_folder.join("01.md");
+        let file2 = week_folder.join("04.md");
+        let file3 = week_folder.join("02.md");
+
+        File::create(&file1).unwrap().write_all(b"note 1").unwrap();
+        File::create(&file2).unwrap().write_all(b"note 4").unwrap();
+        File::create(&file3).unwrap().write_all(b"note 2").unwrap();
+
+        // Get all notes and verify the last one
+        let all_files = find_all_not_files(base.to_path_buf()).unwrap();
+        let last_file = all_files.last();
+
+        assert!(last_file.is_some());
+        assert_eq!(last_file.unwrap().file_name().unwrap(), "04.md");
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn test_find_last_not_in_empty_directory() {
+        use tempfile::tempdir;
+
+        // Create an empty temporary directory
+        let dir = tempdir().unwrap();
+        let base = dir.path();
+
+        // Try to find notes in empty directory
+        let all_files = find_all_not_files(base.to_path_buf()).unwrap();
+        let last_file = all_files.last();
+
+        assert!(last_file.is_none());
     }
 }
