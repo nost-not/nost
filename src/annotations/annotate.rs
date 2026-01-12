@@ -3,14 +3,14 @@ use uuid::Uuid;
 use crate::{dates::get::get_now_as_string, events::models::NotEvent, files::append::append};
 
 pub fn annotate(
-    option_date: Option<&str>,
+    date: Option<&str>,
     event: NotEvent,
     input_uid: Option<&Uuid>,
     not_path: &str,
     workday: Option<&str>,
 ) {
     let now = get_now_as_string();
-    let date = match option_date {
+    let date = match date {
         Some(d) => d,
         None => &now,
     };

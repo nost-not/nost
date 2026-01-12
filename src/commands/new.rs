@@ -1,4 +1,4 @@
-use crate::nots::create::create_not;
+use crate::files::create::create_not;
 
 pub fn new(args: Vec<String>) {
     if args.len() > 2 {

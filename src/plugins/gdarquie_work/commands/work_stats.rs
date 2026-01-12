@@ -1,5 +1,5 @@
 use crate::files::append::append;
-use crate::nots::get::get_or_create_not;
+use crate::files::find::get_or_create_not;
 use crate::plugins::gdarquie_work::work;
 use std::path::PathBuf;
 

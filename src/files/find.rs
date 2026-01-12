@@ -1,15 +1,19 @@
-use std::{env, fs::read_dir, io::Result as IoResult, path::PathBuf};
-
+use crate::configurations::get::get_value_from_config;
+use crate::files::build_paths::build_file_path_for_now;
+use crate::files::create::create_not;
+use crate::files::name::name;
 use regex::Regex;
+use std::{env, fs::read_dir, io::Result as IoResult, path::PathBuf};
 
 pub fn find_all_not_files(path: PathBuf) -> IoResult<Vec<PathBuf>> {
     let mut files = Vec::new();
-    let mut paths: Vec<PathBuf> = vec![path];
+    let mut paths = vec![path];
 
     let folder_regex = Regex::new(r"^\d+$").unwrap();
     let file_regex = Regex::new(r".*\d+\.md$").unwrap();
 
     while let Some(current) = paths.pop() {
+        // if path is a directory, read its content
         match read_dir(&current) {
             Ok(entries) => {
                 for entry in entries.flatten() {
@@ -25,7 +29,15 @@ pub fn find_all_not_files(path: PathBuf) -> IoResult<Vec<PathBuf>> {
                     }
                 }
             }
-            Err(err) => return Err(err),
+            Err(err) => {
+                // if path is the path of a file, just return it
+                if current.is_file() {
+                    files.push(current);
+                    continue;
+                }
+
+                return Err(err);
+            }
         }
     }
 
@@ -55,6 +67,27 @@ pub fn get_project_root() -> Result<PathBuf, Box<dyn std::error::Error>> {
     println!("Project root: {:?}\n", project_root);
 
     Ok(project_root.to_path_buf())
+}
+
+pub fn get_or_create_not(title: Option<String>) -> std::io::Result<String> {
+    // get all existing notes
+    match title {
+        Some(title) => {
+            // todo: check if not title is correct
+            create_not(Some(title.clone())).unwrap();
+
+            let not_path = get_value_from_config("not_path").unwrap();
+            let not_file_path = build_file_path_for_now(&not_path);
+            let not_file_name = name();
+            let full_not_file_path = format!("{}{}", &not_file_path, not_file_name);
+
+            Ok(full_not_file_path)
+        }
+        None => {
+            let new_not_path = create_not(None);
+            Ok(new_not_path.unwrap())
+        }
+    }
 }
 
 #[cfg(test)]
@@ -99,5 +132,52 @@ mod tests {
         assert!(found_files.contains(&"02.md".to_string()));
         assert!(!found_files.contains(&"not_a_note.txt".to_string()));
         assert_eq!(found_files.len(), 2);
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn test_find_last_not() {
+        use std::fs::{self, File};
+        use std::io::Write;
+        use tempfile::tempdir;
+
+        // Create a temporary directory
+        let dir = tempdir().unwrap();
+        let base = dir.path();
+
+        // Create nested folders and files to mimic note structure
+        let week_folder = base.join("1");
+        fs::create_dir(&week_folder).unwrap();
+
+        let file1 = week_folder.join("01.md");
+        let file2 = week_folder.join("04.md");
+        let file3 = week_folder.join("02.md");
+
+        File::create(&file1).unwrap().write_all(b"note 1").unwrap();
+        File::create(&file2).unwrap().write_all(b"note 4").unwrap();
+        File::create(&file3).unwrap().write_all(b"note 2").unwrap();
+
+        // Get all notes and verify the last one
+        let all_files = find_all_not_files(base.to_path_buf()).unwrap();
+        let last_file = all_files.last();
+
+        assert!(last_file.is_some());
+        assert_eq!(last_file.unwrap().file_name().unwrap(), "04.md");
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn test_find_last_not_in_empty_directory() {
+        use tempfile::tempdir;
+
+        // Create an empty temporary directory
+        let dir = tempdir().unwrap();
+        let base = dir.path();
+
+        // Try to find notes in empty directory
+        let all_files = find_all_not_files(base.to_path_buf()).unwrap();
+        let last_file = all_files.last();
+
+        assert!(last_file.is_none());
     }
 }
