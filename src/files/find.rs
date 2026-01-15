@@ -1,7 +1,3 @@
-use crate::configurations::get::get_value_from_config;
-use crate::files::build_paths::build_file_path_for_now;
-use crate::files::create::create_not;
-use crate::files::name::name;
 use regex::Regex;
 use std::{env, fs::read_dir, io::Result as IoResult, path::PathBuf};
 
@@ -67,27 +63,6 @@ pub fn get_project_root() -> Result<PathBuf, Box<dyn std::error::Error>> {
     println!("Project root: {:?}\n", project_root);
 
     Ok(project_root.to_path_buf())
-}
-
-pub fn get_or_create_not(title: Option<String>) -> std::io::Result<String> {
-    // get all existing notes
-    match title {
-        Some(title) => {
-            // todo: check if not title is correct
-            create_not(Some(title.clone())).unwrap();
-
-            let not_path = get_value_from_config("not_path").unwrap();
-            let not_file_path = build_file_path_for_now(&not_path);
-            let not_file_name = name();
-            let full_not_file_path = format!("{}{}", &not_file_path, not_file_name);
-
-            Ok(full_not_file_path)
-        }
-        None => {
-            let new_not_path = create_not(None);
-            Ok(new_not_path.unwrap())
-        }
-    }
 }
 
 #[cfg(test)]

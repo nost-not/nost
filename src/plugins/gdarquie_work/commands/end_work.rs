@@ -1,12 +1,12 @@
 use crate::{
-    annotations::annotate::annotate, events::models::NotEvent, files::find::get_or_create_not,
+    annotations::annotate::annotate, events::models::NotEvent, files::create::create_note,
     plugins::gdarquie_work::work_annotations::find::find_last_work_annotation,
 };
 
 pub fn end_work(args: Vec<String>) {
     // we check if there is an active work session in the last not
     let last_work_annotation = find_last_work_annotation();
-    let not_path = get_or_create_not(None).unwrap();
+    let not_path = create_note(None).unwrap();
 
     // we first check if there is a previous work annotation
     let workday_string = if let Some((annotation, path)) = last_work_annotation {

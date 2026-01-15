@@ -1,9 +1,9 @@
 use crate::{
-    annotations::annotate::annotate, events::models::NotEvent, files::find::get_or_create_not,
+    annotations::annotate::annotate, events::models::NotEvent, files::create::create_note,
 };
 
 pub fn start_work(args: Vec<String>) {
-    let not_path = get_or_create_not(None).unwrap();
+    let not_path = create_note(None).unwrap();
     let default_workday;
     let workday = if args.len() > 2 {
         if chrono::NaiveDate::parse_from_str(&args[2], "%Y-%m-%d").is_err() {
