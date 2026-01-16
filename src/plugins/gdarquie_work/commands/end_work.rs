@@ -1,15 +1,19 @@
+// use std::path::Path;
+
 use crate::{
     annotations::annotate::annotate, events::models::NotEvent, files::create::create_note,
     plugins::gdarquie_work::work_annotations::find::find_last_work_annotation,
 };
 
-pub fn end_work(args: Vec<String>) {
+pub fn end_work() {
     // we check if there is an active work session in the last not
     let last_work_annotation = find_last_work_annotation();
     let not_path = create_note(None).unwrap();
 
     // we first check if there is a previous work annotation
-    let workday_string = if let Some((annotation, path)) = last_work_annotation {
+    let workday_string = if let Some(work_annotation_with_path) = last_work_annotation {
+        let annotation = work_annotation_with_path.annotation;
+        let path = work_annotation_with_path.path;
         // there is a START_WORK annotation : it is an active work session
         if annotation.event == NotEvent::StartWork {
             println!("There is an active work session in the last not.");
@@ -50,21 +54,12 @@ pub fn end_work(args: Vec<String>) {
 
             workday
         } else {
-            // Annotation exists but not START_WORK: no active session
-            if args.len() > 2 {
-                Some(args[2].clone())
-            } else {
-                Some(chrono::Local::now().format("%Y-%m-%d").to_string())
-            }
-        }
-    } else {
-        // No annotation found: no active session
-        if args.len() > 2 {
-            Some(args[2].clone())
-        } else {
-            println!("No date provided, using today's date.");
+            println!("No active session, using today's date.");
             Some(chrono::Local::now().format("%Y-%m-%d").to_string())
         }
+    } else {
+        println!("No active session, using today's date.");
+        Some(chrono::Local::now().format("%Y-%m-%d").to_string())
     };
 
     let workday = workday_string.as_deref();
