@@ -1,9 +1,22 @@
 // use std::path::Path;
 
+use std::path::Path;
+
 use crate::{
     annotations::annotate::annotate, events::models::NotEvent, files::create::create_note,
     plugins::gdarquie_work::work_annotations::find::find_last_work_annotation,
+    plugins::gdarquie_work::work_annotations::models::WorkAnnotationWithPath,
 };
+
+pub fn compute_workday(last_annotation: WorkAnnotationWithPath) -> String {
+    // if there is a date: take the workday of the date
+    // todo: get date
+
+    // if there is an active session
+    // if there is no active session
+    let workday = "";
+    return workday.to_string();
+}
 
 pub fn end_work() {
     // we check if there is an active work session in the last not
@@ -64,5 +77,22 @@ pub fn end_work() {
 
     let workday = workday_string.as_deref();
     annotate(None, NotEvent::StopWork, None, &not_path, workday);
+    std::process::exit(0);
+}
+
+// todo: continue here for simplifying the code for end_work
+pub fn end_work_v2() {
+    let last_work_annotation = find_last_work_annotation();
+    let path = Path::new(&create_note(None).unwrap()).to_path_buf();
+
+    let workday = compute_workday(last_work_annotation.unwrap());
+
+    annotate(
+        None,
+        NotEvent::StopWork,
+        None,
+        &path.to_str().unwrap(),
+        Some(&workday),
+    );
     std::process::exit(0);
 }

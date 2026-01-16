@@ -6,7 +6,7 @@ mod events;
 mod files;
 mod plugins;
 use crate::commands::new::new;
-use crate::plugins::gdarquie_work::commands::end_work::end_work;
+use crate::plugins::gdarquie_work::commands::end_work::end_work_v2;
 use crate::plugins::gdarquie_work::commands::start_work::start_work;
 use crate::plugins::gdarquie_work::commands::work_stats::work_stats;
 use dotenv::dotenv;
@@ -30,7 +30,7 @@ fn main() {
     } else if args[1] == "start-work" || args[1] == "sw" {
         start_work(args);
     } else if args[1] == "end-work" || args[1] == "ew" {
-        end_work();
+        end_work_v2();
     } else if args[1] == "work-stats" || args[1] == "ws" {
         work_stats(args);
     } else {
