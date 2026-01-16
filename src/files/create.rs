@@ -12,7 +12,7 @@ use crate::{
     files::{append::append, build_paths::build_file_path_for_now, name::name},
 };
 
-pub fn create_not(title: Option<String>) -> std::io::Result<String> {
+pub fn create_note(title: Option<String>) -> std::io::Result<String> {
     // handle paths
     let not_path = get_value_from_config("not_path").unwrap();
     let not_file_path = build_file_path_for_now(&not_path);

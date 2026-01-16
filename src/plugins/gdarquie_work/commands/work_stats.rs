@@ -1,5 +1,5 @@
 use crate::files::append::append;
-use crate::files::find::get_or_create_not;
+use crate::files::create::create_note;
 use crate::plugins::gdarquie_work::work;
 use std::path::PathBuf;
 
@@ -34,7 +34,7 @@ pub fn work_stats(args: Vec<String>) {
     let stats_content = work::compose_monthly_work_stats(stats);
 
     if in_not {
-        let file_path = get_or_create_not(None).unwrap();
+        let file_path = create_note(None).unwrap();
         let _ = append(PathBuf::from(file_path), &stats_content);
         println!("Stats appended to the current not.");
     } else {
