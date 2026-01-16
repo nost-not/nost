@@ -1,11 +1,11 @@
-use crate::files::create::create_note;
+use crate::files::create::create_file;
 
 pub fn new(args: Vec<String>) {
     if args.len() > 2 {
         println!("Creating not with title: {}", args[1]);
-        create_note(Some(args[2].clone())).unwrap();
+        create_file(Some(args[2].clone())).unwrap();
     } else {
-        create_note(None).unwrap();
+        create_file(None).unwrap();
     }
 
     std::process::exit(0);
