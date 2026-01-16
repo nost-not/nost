@@ -1,13 +1,11 @@
-use std::path::PathBuf;
-
 use crate::annotations::extract::extract_annotations_from_path;
 use crate::annotations::filter::filter_annotation_by_events;
-use crate::annotations::models::Annotation;
 use crate::configurations::get::get_value_from_config;
 use crate::events::models::NotEvent;
 use crate::files::find::find_all_not_files;
+use crate::plugins::gdarquie_work::work_annotations::models::WorkAnnotationWithPath;
 
-pub fn find_last_work_annotation() -> Option<(Annotation, PathBuf)> {
+pub fn find_last_work_annotation() -> Option<WorkAnnotationWithPath> {
     let not_path = match get_value_from_config("not_path") {
         Ok(path) => path,
         Err(_) => return None,
@@ -32,7 +30,11 @@ pub fn find_last_work_annotation() -> Option<(Annotation, PathBuf)> {
             if !work_annotations.is_empty() {
                 // Sort by datetime to get the most recent annotation
                 work_annotations.sort_by_key(|a| a.datetime);
-                return Some((work_annotations.last().cloned().unwrap(), path));
+
+                return Some(WorkAnnotationWithPath {
+                    annotation: work_annotations.last().cloned().unwrap(),
+                    path,
+                });
             }
         }
     }
