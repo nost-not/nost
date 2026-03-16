@@ -1,6 +1,9 @@
 use uuid::Uuid;
 
-use crate::{dates::get::get_now_as_string, events::models::NotEvent, files::append::append};
+use crate::{
+    dates::get::get_now_as_string, events::models::NotEvent, files::append::append,
+    files::check_content::ends_with_line_break,
+};
 
 pub fn annotate(
     date: Option<&str>,
@@ -38,7 +41,16 @@ pub fn annotate(
         )
     };
 
-    let annotation = format!("[//]: # {}\n", content);
+    // Add a line break before the annotation if there is no previous empty line
+    let ends_with_line_break = ends_with_line_break(not_path.into())
+        .expect("🛑 Failed to check if file ends with line break.");
+
+    let annotation = if ends_with_line_break {
+        format!("\n[//]: # {}", content)
+    } else {
+        format!("[//]: # {}\n", content)
+    };
+
     append(not_path.into(), &annotation).expect("🛑 Failed to annotate.");
 }
 
