@@ -40,11 +40,11 @@ mod tests {
     #[test]
     #[serial_test::serial]
     fn test_parse_annotation() {
-        let raw_annotation = "not:{date:'2025-09-29T00:00:43.245684903+02:00',event:'START_WORK',uid:'b86bc6ed-50a5-4ef2-bdd3-e17baef11eff'}";
+        let raw_annotation = "not:{date:'2025-09-29T00:00:43+02:00',event:'START_WORK',uid:'b86bc6ed-50a5-4ef2-bdd3-e17baef11eff'}";
         let annotation = parse_annotation(raw_annotation).unwrap();
         assert_eq!(
             annotation.datetime.to_rfc3339(),
-            "2025-09-29T00:00:43.245684903+02:00"
+            "2025-09-29T00:00:43+02:00"
         );
         assert_eq!(annotation.event, crate::events::models::NotEvent::StartWork);
         assert_eq!(

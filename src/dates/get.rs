@@ -1,7 +1,8 @@
 use chrono::{Datelike, Local};
 
 pub fn get_now_as_string() -> String {
-    Local::now().to_rfc3339()
+    let now = Local::now();
+    format!("{}{}", now.format("%Y-%m-%dT%H:%M:%S"), now.format("%:z"))
 }
 
 pub fn get_week_of_month() -> u32 {
