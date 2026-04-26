@@ -35,6 +35,8 @@ fn main() {
         work_stats(args);
     } else if args[1] == "new-folder" || args[1] == "nf" {
         let _ = commands::new_folder::new_folder();
+    } else if args[1] == "new-start-work" {
+        // implement new start work
     } else {
         eprintln!("Unknown command: \"{}\"", args[1]);
         std::process::exit(1);
