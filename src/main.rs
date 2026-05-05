@@ -5,7 +5,7 @@ mod dates;
 mod events;
 mod files;
 mod plugins;
-use crate::commands::new::new;
+use crate::commands::new::{new, new_legacy};
 use crate::plugins::gdarquie_work::commands::end_work::end_work;
 use crate::plugins::gdarquie_work::commands::start_work::start_work;
 use crate::plugins::gdarquie_work::commands::work_stats::work_stats;
@@ -26,7 +26,7 @@ fn main() {
     }
 
     if args[1] == "new" || args[1] == "n" {
-        new(args);
+        new_legacy(args);
     } else if args[1] == "start-work" || args[1] == "sw" {
         start_work(args);
     } else if args[1] == "end-work" || args[1] == "ew" {
@@ -35,6 +35,10 @@ fn main() {
         work_stats(args);
     } else if args[1] == "new-folder" || args[1] == "nf" {
         let _ = commands::new_folder::new_folder();
+    } else if args[1] == "new-default" || args[1] == "nn" {
+        // wip
+        new();
+        println!("Creating new default note...");
     } else if args[1] == "new-start-work" {
         // implement new start work
     } else {
