@@ -1,4 +1,4 @@
-use std::fs;
+use std::{env, fs};
 
 use crate::configurations::find::find_config_path;
 use crate::configurations::models::Config;
@@ -28,4 +28,14 @@ pub fn get_value_from_config(key: &str) -> Result<String, Box<dyn std::error::Er
         Some(value) => Ok(value),
         None => Err(format!("Key '{}' not found in configuration", key).into()),
     }
+}
+
+pub fn get_config_path() -> String {
+    // compose configuration path and create configuration folder
+    let not_path = env::var("NOT_PATH").unwrap_or_else(|_| {
+        eprintln!("NOT_PATH environment variable not set.");
+        std::process::exit(1);
+    });
+    let configuration_path = format!("{}/{}/", &not_path, ".nost");
+    format!("{}{}", &configuration_path, "nost_config.json")
 }

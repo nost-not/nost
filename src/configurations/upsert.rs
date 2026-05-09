@@ -1,25 +1,27 @@
-use serde_json::json;
+use serde_json::{json, Value};
 use std::{env, fs::create_dir_all};
 
 use crate::{
-    configurations::{find::is_config_exists, init},
+    configurations::{find::is_config_exists, get::get_config_path},
     dates::get::get_now_as_string,
 };
 
-pub fn init_configuration() -> Result<String, Box<dyn std::error::Error>> {
+pub fn upsert_configuration() -> Result<String, Box<dyn std::error::Error>> {
     // check if there is an existing configuration folder
     if is_config_exists() {
+        let default_config_path: String = get_config_path();
+        let config_content = std::fs::read_to_string(&default_config_path)?;
+        let mut config: Value = serde_json::from_str(&config_content)?;
+
+        config["last_updated"] = json!(get_now_as_string());
+        let config_file = std::fs::File::create(&default_config_path)?;
+        serde_json::to_writer_pretty(config_file, &config)?;
+
         return Ok(String::from("Configuration already exists."));
     }
 
     log::debug!("No configuration found. Initializing configuration...");
-
-    // compose configuration path and create configuration folder
-    let not_path = env::var("NOT_PATH").unwrap_or_else(|_| {
-        eprintln!("NOT_PATH environment variable not set.");
-        std::process::exit(1);
-    });
-    let configuration_path = format!("{}/{}/", &not_path, ".nost");
+    let configuration_path = get_config_path();
     create_dir_all(&configuration_path)?;
 
     // create en empty configuration file

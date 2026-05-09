@@ -1,4 +1,4 @@
-use crate::{configurations::init::init_configuration, files::create::create_file};
+use crate::{configurations::upsert::upsert_configuration, files::create::create_file};
 
 pub fn new_legacy(args: Vec<String>) {
     if args.len() > 2 {
@@ -16,7 +16,7 @@ pub fn new() {
 
     // compute path of the configuration
     // check if the configuration file exists, if not create it with default values
-    let _ = init_configuration();
+    let _ = upsert_configuration();
 
     // compute path of the day folder
     // check if the folder exists, if not create it
