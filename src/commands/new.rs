@@ -1,4 +1,7 @@
-use crate::{files::create::create_file, projects::initialize::initialize_project};
+use crate::{
+    files::create::{create_file, create_note_file_with_folders},
+    projects::initialize::initialize_project,
+};
 
 pub fn new_legacy(args: Vec<String>) {
     if args.len() > 2 {
@@ -14,8 +17,12 @@ pub fn new_legacy(args: Vec<String>) {
 pub fn new() {
     println!("Creating new note for today...");
     let _ = initialize_project();
-    // create_note_file_with_folder();
-    // add_event_to_configuration(EventName::CreateNot);
+    let _ = create_note_file_with_folders();
+    // todo: continue here
+    // save the records in a journal/ folder in not_path/.nost/
+    // [{<record>}, {<record>}, ...]
+    // record_event(EventName::CreateNot);
+    // maybe use one file by day for the journal
 
     println!("✅ Note has been created successfully!");
     std::process::exit(0);

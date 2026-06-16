@@ -33,13 +33,3 @@ pub fn get_value_from_config(key: &str) -> Result<String, Box<dyn std::error::Er
         None => Err(format!("Key '{}' not found in configuration", key).into()),
     }
 }
-
-pub fn get_config_path() -> String {
-    // compose configuration path and create configuration folder
-    let not_path = env::var("NOT_PATH").unwrap_or_else(|_| {
-        eprintln!("NOT_PATH environment variable not set.");
-        std::process::exit(1);
-    });
-    let project_configuration_path = format!("{}/{}/", &not_path, ".nost");
-    format!("{}{}", &project_configuration_path, "project.json")
-}
