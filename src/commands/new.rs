@@ -1,4 +1,4 @@
-use crate::{configurations::upsert::upsert_configuration, files::create::create_file};
+use crate::{files::create::create_file, projects::initialize::initialize_project};
 
 pub fn new_legacy(args: Vec<String>) {
     if args.len() > 2 {
@@ -13,20 +13,10 @@ pub fn new_legacy(args: Vec<String>) {
 
 pub fn new() {
     println!("Creating new note for today...");
+    let _ = initialize_project();
+    // create_note_file_with_folder();
+    // add_event_to_configuration(EventName::CreateNot);
 
-    // compute path of the configuration
-    // check if the configuration file exists, if not create it with default values
-    let _ = upsert_configuration();
-
-    // compute path of the day folder
-    // check if the folder exists, if not create it
-    // get_or_create_day_folder();
-
-    // compute path of the day note
-    // create the note if it doesn't exist
-    // get_or_create_day_note();
-
-    // add minimal content to the note: the date and add an info in config file
     println!("✅ Note has been created successfully!");
     std::process::exit(0);
 }

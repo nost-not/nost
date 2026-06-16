@@ -1,32 +1,30 @@
 use std::fmt;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum NotEvent {
-    // todo: move in work event enum
+pub enum EventName {
     StartWork,
     StopWork,
-    // keep in core
     CreateNot,
 }
 
-impl fmt::Display for NotEvent {
+impl fmt::Display for EventName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            NotEvent::StartWork => write!(f, "START_WORK"),
-            NotEvent::StopWork => write!(f, "STOP_WORK"),
-            NotEvent::CreateNot => write!(f, "CREATE_NOT"),
+            EventName::StartWork => write!(f, "START_WORK"),
+            EventName::StopWork => write!(f, "STOP_WORK"),
+            EventName::CreateNot => write!(f, "CREATE_NOT"),
         }
     }
 }
 
-impl std::str::FromStr for NotEvent {
+impl std::str::FromStr for EventName {
     type Err = ();
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         match s {
-            "START_WORK" => Ok(NotEvent::StartWork),
-            "STOP_WORK" => Ok(NotEvent::StopWork),
-            "CREATE_NOT" => Ok(NotEvent::CreateNot),
+            "START_WORK" => Ok(EventName::StartWork),
+            "STOP_WORK" => Ok(EventName::StopWork),
+            "CREATE_NOT" => Ok(EventName::CreateNot),
             _ => Err(()),
         }
     }

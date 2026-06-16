@@ -2,7 +2,7 @@ use crate::annotations::extract::extract_annotations_from_path;
 use crate::annotations::filter::filter_annotation_by_events;
 use crate::annotations::models::Annotation;
 use crate::configurations::get::get_value_from_config;
-use crate::events::models::NotEvent;
+use crate::events::models::EventName;
 use crate::files::build_paths::build_file_path_for_month;
 use chrono::Datelike;
 use chrono::Local;
@@ -43,10 +43,10 @@ pub fn compute_work_time_from_annotations(annotations: &Vec<Annotation>) -> i32 
 
     for annotation in annotations {
         match annotation.event {
-            NotEvent::StartWork => {
+            EventName::StartWork => {
                 start_time = Some(annotation.datetime);
             }
-            NotEvent::StopWork => {
+            EventName::StopWork => {
                 if let Some(start) = start_time {
                     total_time_in_minutes += (annotation.datetime - start).num_minutes() as i32;
                     start_time = None;
@@ -90,7 +90,7 @@ pub fn compute_monthly_work_stats(month: Option<&str>) -> Result<MonthlyWorkStat
 
     // filter only work related annotations
     let work_annotations =
-        filter_annotation_by_events(annotations, vec![NotEvent::StartWork, NotEvent::StopWork]);
+        filter_annotation_by_events(annotations, vec![EventName::StartWork, EventName::StopWork]);
 
     let mut annotations_hmap: HashMap<String, Vec<Annotation>> = HashMap::new();
 
@@ -233,14 +233,14 @@ mod tests {
         let stop = start + Duration::hours(1);
         let start_annotation = Annotation {
             _uid: Uuid::new_v4(),
-            event: NotEvent::StartWork,
+            event: EventName::StartWork,
             datetime: start,
             workday: None,
         };
 
         let stop_annotation = Annotation {
             _uid: Uuid::new_v4(),
-            event: NotEvent::StopWork,
+            event: EventName::StopWork,
             datetime: stop,
             workday: None,
         };
@@ -248,7 +248,7 @@ mod tests {
         assert_eq!(compute_work_time_from_annotations(&annotations), 60);
     }
 
-    fn make_annotation(event: NotEvent, datetime: chrono::DateTime<FixedOffset>) -> Annotation {
+    fn make_annotation(event: EventName, datetime: chrono::DateTime<FixedOffset>) -> Annotation {
         Annotation {
             _uid: Uuid::new_v4(),
             event,
@@ -316,8 +316,8 @@ mod tests {
         let start = tz.with_ymd_and_hms(2025, 9, 1, 9, 0, 0).unwrap();
         let stop = start + Duration::hours(1);
         let annotations = vec![
-            make_annotation(NotEvent::StartWork, start),
-            make_annotation(NotEvent::StopWork, stop),
+            make_annotation(EventName::StartWork, start),
+            make_annotation(EventName::StopWork, stop),
         ];
         let stats = compute_work_stats_from_annotations(annotations);
         assert_eq!(stats.total_duration_in_minutes, 60);
@@ -336,10 +336,10 @@ mod tests {
         let start2 = tz.with_ymd_and_hms(2025, 9, 2, 10, 0, 0).unwrap();
         let stop2 = start2 + Duration::hours(2);
         let annotations = vec![
-            make_annotation(NotEvent::StartWork, start1),
-            make_annotation(NotEvent::StopWork, stop1),
-            make_annotation(NotEvent::StartWork, start2),
-            make_annotation(NotEvent::StopWork, stop2),
+            make_annotation(EventName::StartWork, start1),
+            make_annotation(EventName::StopWork, stop1),
+            make_annotation(EventName::StartWork, start2),
+            make_annotation(EventName::StopWork, stop2),
         ];
         let stats = compute_work_stats_from_annotations(annotations);
         assert_eq!(stats.total_duration_in_minutes, 180);
@@ -364,10 +364,10 @@ mod tests {
         let start2 = tz.with_ymd_and_hms(2025, 9, 1, 10, 0, 0).unwrap(); // week 36
         let stop2 = start2 + Duration::hours(2);
         let annotations = vec![
-            make_annotation(NotEvent::StartWork, start1),
-            make_annotation(NotEvent::StopWork, stop1),
-            make_annotation(NotEvent::StartWork, start2),
-            make_annotation(NotEvent::StopWork, stop2),
+            make_annotation(EventName::StartWork, start1),
+            make_annotation(EventName::StopWork, stop1),
+            make_annotation(EventName::StartWork, start2),
+            make_annotation(EventName::StopWork, stop2),
         ];
         let stats = compute_work_stats_from_annotations(annotations);
         assert_eq!(stats.total_duration_in_minutes, 180);

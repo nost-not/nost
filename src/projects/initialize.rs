@@ -1,14 +1,31 @@
 use serde_json::{json, Value};
-use std::{env, fs::create_dir_all};
+use std::{env, fs::create_dir_all, path::Path};
 
-use crate::{
-    configurations::{find::is_config_exists, get::get_config_path},
-    dates::get::get_now_as_string,
-};
+use crate::{configurations::get::get_config_path, dates::get::get_now_as_string};
 
-pub fn upsert_configuration() -> Result<String, Box<dyn std::error::Error>> {
-    // check if there is an existing configuration folder
-    if is_config_exists() {
+/**
+ * Checks if the configuration file `project.json` exists
+ * in the configuration directory in root/.nost
+ */
+pub fn is_project_initialized() -> bool {
+    let not_path = env::var("NOT_PATH").unwrap_or_else(|_| {
+        eprintln!("NOT_PATH environment variable not set.");
+        std::process::exit(1);
+    });
+
+    let config_path = format!("{}/.nost/project.json", &not_path,);
+    log::debug!("Checking if configuration exists at path: {}", &config_path);
+    Path::new(&config_path).is_file()
+}
+
+/**
+ * Create a nost_config.json file in the not path/.nost folder
+ * if it does not exist, or update the last_updated timestamp if it does.
+ */
+pub fn initialize_project() -> Result<String, Box<dyn std::error::Error>> {
+    // check if there is an existing configuration folder with a file
+    if is_project_initialized() {
+        // if this file exists update the file
         let default_config_path: String = get_config_path();
         let config_content = std::fs::read_to_string(&default_config_path)?;
         let mut config: Value = serde_json::from_str(&config_content)?;
@@ -25,7 +42,7 @@ pub fn upsert_configuration() -> Result<String, Box<dyn std::error::Error>> {
     create_dir_all(&configuration_path)?;
 
     // create en empty configuration file
-    let default_config_path = format!("{}{}", &configuration_path, "nost_config.json");
+    let default_config_path = format!("{}{}", &configuration_path, "project.json");
     let config_file = std::fs::File::create(&default_config_path)?;
     log::debug!("Configuration initialized at path: {}", &configuration_path);
 

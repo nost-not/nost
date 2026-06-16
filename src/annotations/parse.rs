@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use crate::{
     annotations::{extract::extract_field_from_annotation, models::Annotation},
-    events::models::NotEvent,
+    events::models::EventName,
 };
 
 pub fn parse_annotation(annotation_in_text: &str) -> Result<Annotation, &str> {
@@ -15,7 +15,7 @@ pub fn parse_annotation(annotation_in_text: &str) -> Result<Annotation, &str> {
 
     // extract event
     let event = extract_field_from_annotation(annotation_in_text, "event")
-        .and_then(|event_str| NotEvent::from_str(&event_str).ok())
+        .and_then(|event_str| EventName::from_str(&event_str).ok())
         .ok_or("Missing or invalid event")?;
 
     // extract uid
@@ -46,7 +46,10 @@ mod tests {
             annotation.datetime.to_rfc3339(),
             "2025-09-29T00:00:43+02:00"
         );
-        assert_eq!(annotation.event, crate::events::models::NotEvent::StartWork);
+        assert_eq!(
+            annotation.event,
+            crate::events::models::EventName::StartWork
+        );
         assert_eq!(
             annotation._uid.to_string(),
             "b86bc6ed-50a5-4ef2-bdd3-e17baef11eff"

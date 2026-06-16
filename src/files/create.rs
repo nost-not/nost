@@ -8,7 +8,7 @@ use crate::{
     annotations::annotate::annotate,
     configurations::get::get_value_from_config,
     dates::get::{get_date_as_text_en, get_date_as_text_fr},
-    events::models::NotEvent,
+    events::models::EventName,
     files::{append::append, build_paths::build_file_path_for_now, name::name},
 };
 
@@ -50,7 +50,7 @@ pub fn create_file(title: Option<String>) -> std::io::Result<String> {
 
     annotate(
         None,
-        NotEvent::CreateNot,
+        EventName::CreateNot,
         None,
         full_not_file_path.as_str(),
         None,
@@ -67,4 +67,30 @@ pub fn create_file(title: Option<String>) -> std::io::Result<String> {
     println!("✅ New \"not\" has successfully being initiated.");
 
     Ok(full_not_file_path)
+}
+
+pub fn create_note_file_with_folder() -> std::io::Result<String> {
+    // handle paths
+    let not_path = get_value_from_config("not_path").unwrap();
+    let not_file_path = build_file_path_for_now(&not_path);
+
+    // create folders if needed
+    if let Err(e) = create_dir_all(&not_file_path) {
+        return Err(Error::other(format!(
+            "🛑 Failed to create directory: {}",
+            e
+        )));
+    }
+
+    // create the file
+    match File::create(&not_file_path) {
+        Ok(_file) => {
+            println!("✅ File created: {}", not_file_path);
+        }
+        Err(e) => {
+            eprintln!("Error creating file: {}", e);
+        }
+    };
+
+    Ok(not_file_path)
 }

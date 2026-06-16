@@ -1,7 +1,7 @@
 use crate::annotations::extract::extract_annotations_from_path;
 use crate::annotations::filter::filter_annotation_by_events;
 use crate::configurations::get::get_value_from_config;
-use crate::events::models::NotEvent;
+use crate::events::models::EventName;
 use crate::files::find::find_all_not_files;
 use crate::plugins::gdarquie_work::work_annotations::models::WorkAnnotationWithPath;
 
@@ -24,7 +24,7 @@ pub fn find_last_work_annotation() -> Option<WorkAnnotationWithPath> {
             // Check if there are any work-related annotations
             let mut work_annotations = filter_annotation_by_events(
                 annotations,
-                vec![NotEvent::StartWork, NotEvent::StopWork],
+                vec![EventName::StartWork, EventName::StopWork],
             );
 
             if !work_annotations.is_empty() {

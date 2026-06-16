@@ -5,6 +5,7 @@ mod dates;
 mod events;
 mod files;
 mod plugins;
+mod projects;
 use crate::commands::new::{new, new_legacy};
 use crate::plugins::gdarquie_work::commands::end_work::end_work;
 use crate::plugins::gdarquie_work::commands::start_work::start_work;

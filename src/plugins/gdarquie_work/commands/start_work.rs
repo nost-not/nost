@@ -1,5 +1,5 @@
 use crate::{
-    annotations::annotate::annotate, events::models::NotEvent, files::create::create_file,
+    annotations::annotate::annotate, events::models::EventName, files::create::create_file,
 };
 
 pub fn start_work(args: Vec<String>) {
@@ -16,6 +16,6 @@ pub fn start_work(args: Vec<String>) {
         default_workday = chrono::Local::now().format("%Y-%m-%d").to_string();
         Some(default_workday.as_str())
     };
-    annotate(None, NotEvent::StartWork, None, &not_path, workday);
+    annotate(None, EventName::StartWork, None, &not_path, workday);
     std::process::exit(0);
 }
