@@ -16,3 +16,18 @@ pub fn build_file_path_for_now(base_path: &str) -> String {
 
     format!("{}/{}/{}/{}/", base_path, year, month, get_week_of_month())
 }
+
+pub fn build_folder_path_for_now(base_path: &str) -> String {
+    let today = Local::now().date_naive();
+    let year = today.year();
+    let month = format!("{:02}", today.month());
+
+    format!(
+        "{}/{}/{}/{}/{}/",
+        base_path,
+        year,
+        month,
+        get_week_of_month(),
+        today.day()
+    )
+}

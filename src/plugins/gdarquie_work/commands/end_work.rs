@@ -2,7 +2,7 @@ use std::path::Path;
 
 use crate::{
     annotations::annotate::annotate,
-    events::models::NotEvent,
+    events::models::EventName,
     files::create::create_file,
     plugins::gdarquie_work::work_annotations::{
         find::find_last_work_annotation, models::WorkAnnotationWithPath,
@@ -46,7 +46,7 @@ fn add_stop_work_annotations(last_annotation: &WorkAnnotationWithPath, path: &Pa
             // STOP_WORK for yesterday
             annotate(
                 Some(&yesterday_datetime_string),
-                NotEvent::StopWork,
+                EventName::StopWork,
                 None,
                 last_annotation.path.to_str().unwrap(),
                 last_annotation.annotation.workday.as_deref(),
@@ -61,7 +61,7 @@ fn add_stop_work_annotations(last_annotation: &WorkAnnotationWithPath, path: &Pa
             // START_WORK for today
             annotate(
                 Some(&today_datetime_string),
-                NotEvent::StartWork,
+                EventName::StartWork,
                 None,
                 path.to_str().unwrap(),
                 last_annotation.annotation.workday.as_deref(),
@@ -72,7 +72,7 @@ fn add_stop_work_annotations(last_annotation: &WorkAnnotationWithPath, path: &Pa
     // we add a STOP_WORK annotation for today
     annotate(
         None,
-        NotEvent::StopWork,
+        EventName::StopWork,
         None,
         path.to_str().unwrap(),
         last_annotation.annotation.workday.as_deref(),
@@ -80,7 +80,7 @@ fn add_stop_work_annotations(last_annotation: &WorkAnnotationWithPath, path: &Pa
 }
 
 pub fn has_active_session(last_work_annotation: &WorkAnnotationWithPath) -> bool {
-    if last_work_annotation.annotation.event == NotEvent::StartWork {
+    if last_work_annotation.annotation.event == EventName::StartWork {
         return true;
     }
 

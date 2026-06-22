@@ -1,8 +1,8 @@
-use crate::{annotations::models::Annotation, events::models::NotEvent};
+use crate::{annotations::models::Annotation, events::models::EventName};
 
 pub fn filter_annotation_by_events(
     annotations: Vec<Annotation>,
-    event: Vec<NotEvent>,
+    event: Vec<EventName>,
 ) -> Vec<Annotation> {
     annotations
         .into_iter()

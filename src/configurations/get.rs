@@ -12,6 +12,10 @@ pub fn get_config() -> Result<Config, Box<dyn std::error::Error>> {
     Ok(config)
 }
 
+/**
+ * Get a specific value from the configuration file based on the provided key.
+ * i.e. get_value_from_config("not_path") will return the value of the "not_path" key in the configuration file.
+ */
 pub fn get_value_from_config(key: &str) -> Result<String, Box<dyn std::error::Error>> {
     let configuration = get_config().unwrap();
 

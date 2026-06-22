@@ -1,13 +1,13 @@
 use uuid::Uuid;
 
 use crate::{
-    dates::get::get_now_as_string, events::models::NotEvent, files::append::append,
+    dates::get::get_now_as_string, events::models::EventName, files::append::append,
     files::check_content::ends_with_line_break,
 };
 
 pub fn annotate(
     date: Option<&str>,
-    event: NotEvent,
+    event: EventName,
     input_uid: Option<&Uuid>,
     not_path: &str,
     workday: Option<&str>,
@@ -73,7 +73,7 @@ mod tests {
         // Call annotate
         super::annotate(
             None,
-            crate::events::models::NotEvent::CreateNot,
+            crate::events::models::EventName::CreateNot,
             None,
             file_path.to_str().unwrap(),
             None,

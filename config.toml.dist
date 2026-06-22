@@ -1,4 +1,3 @@
 not_path=""
 # optionnal, default is 'en', only 'en' and 'fr' are supported for now
 language="en"
-log_level="debug"

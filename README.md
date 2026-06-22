@@ -80,7 +80,6 @@ Copy `config.toml.dist` into `config.toml` and update the values. For example:
 ```toml
 not_path="/home/gaetan/not"
 language="fr"
-log_level="debug"
 ```
 
 ## Build the app
