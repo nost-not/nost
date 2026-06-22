@@ -1,10 +1,35 @@
+use chrono::Local;
+use serde::{Deserialize, Serialize};
 use std::fmt;
+use uuid::Uuid;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum EventName {
     StartWork,
     StopWork,
     CreateNot,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Event {
+    pub datetime: String,
+    pub event: String,
+    pub day: String,
+    pub not_type: String,
+    pub uid: String,
+}
+
+impl Event {
+    pub fn now(event_name: EventName, not_type: String) -> Self {
+        let now = Local::now();
+        Self {
+            datetime: now.to_rfc3339(),
+            event: format!("{}", event_name),
+            day: now.format("%Y-%m-%d").to_string(),
+            not_type,
+            uid: Uuid::new_v4().to_string(),
+        }
+    }
 }
 
 impl fmt::Display for EventName {

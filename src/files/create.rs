@@ -4,11 +4,16 @@ use std::{
     path::Path,
 };
 
+use chrono::{DateTime, Local};
+
 use crate::{
     annotations::annotate::annotate,
     configurations::get::get_value_from_config,
-    dates::get::{get_date_as_text_en, get_date_as_text_fr},
-    events::models::EventName,
+    dates::get::{get_date_as_text_en, get_date_as_text_fr, get_day_as_string},
+    events::{
+        models::{Event, EventName},
+        record::record_event,
+    },
     files::{
         append::append,
         build_paths::{build_file_path_for_now, build_folder_path_for_now},
@@ -73,7 +78,7 @@ pub fn create_file(title: Option<String>) -> std::io::Result<String> {
     Ok(full_not_file_path)
 }
 
-pub fn create_note_file_with_folders() -> std::io::Result<String> {
+pub fn create_note_file_with_folders(note_type: String) -> std::io::Result<String> {
     // get the path of the folder to create
     let not_path = get_value_from_config("not_path").unwrap();
     let today_folder_path = build_folder_path_for_now(&not_path);
@@ -83,6 +88,19 @@ pub fn create_note_file_with_folders() -> std::io::Result<String> {
         &today_folder_path
     );
 
+    let now: DateTime<Local> = Local::now();
+    let today_file_name = get_day_as_string(now);
+    let today_file_path = format!(
+        "{}{}{}{}{}",
+        &today_folder_path, today_file_name, ".", note_type, ".md"
+    );
+
+    // only create if not does not already exists
+    if Path::new(&today_file_path).exists() {
+        println!("Not already existed.");
+        return Ok(today_file_path);
+    }
+
     // create folders if needed
     if let Err(e) = create_dir_all(&today_folder_path) {
         return Err(Error::other(format!(
@@ -90,8 +108,6 @@ pub fn create_note_file_with_folders() -> std::io::Result<String> {
             e
         )));
     }
-
-    let today_file_path = format!("{}{}", &today_folder_path, "default.md");
 
     log::debug!(
         "🚨 Creating note file with folders at path: {}",
@@ -101,6 +117,7 @@ pub fn create_note_file_with_folders() -> std::io::Result<String> {
     // create the file
     match File::create(&today_file_path) {
         Ok(_file) => {
+            record_event(Event::now(EventName::CreateNot, note_type.clone()))?;
             println!("✅ File created: {}", today_file_path);
         }
         Err(e) => {

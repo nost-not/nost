@@ -1,8 +1,12 @@
-use chrono::{Datelike, Local};
+use chrono::{DateTime, Datelike, Local};
 
 pub fn get_now_as_string() -> String {
-    let now = Local::now();
+    let now: DateTime<Local> = Local::now();
     format!("{}{}", now.format("%Y-%m-%dT%H:%M:%S"), now.format("%:z"))
+}
+
+pub fn get_day_as_string(datetime: DateTime<Local>) -> String {
+    format!("{}", datetime.format("%d"))
 }
 
 pub fn get_week_of_month() -> u32 {

@@ -47,7 +47,6 @@ pub fn get_current_directory() -> Result<PathBuf, Box<dyn std::error::Error>> {
     let execution_dir = execution_path
         .parent()
         .ok_or("Could not determine executable directory")?;
-    println!("Execution directory: {:?}\n", execution_dir);
 
     Ok(execution_dir.to_path_buf())
 }

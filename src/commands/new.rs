@@ -17,12 +17,7 @@ pub fn new_legacy(args: Vec<String>) {
 pub fn new() {
     println!("Creating new note for today...");
     let _ = initialize_project();
-    let _ = create_note_file_with_folders();
-    // todo: continue here
-    // save the records in a journal/ folder in not_path/.nost/
-    // [{<record>}, {<record>}, ...]
-    // record_event(EventName::CreateNot);
-    // maybe use one file by day for the journal
+    let _ = create_note_file_with_folders("default".to_string());
 
     println!("✅ Note has been created successfully!");
     std::process::exit(0);

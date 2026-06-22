@@ -1,4 +1,4 @@
-use std::{env, fs};
+use std::fs;
 
 use crate::configurations::find::find_config_path;
 use crate::configurations::models::Config;
