@@ -7,21 +7,25 @@ Whenever you need to take notes, Nost helps you create files following the struc
 For example, if you add a note on the 6th of June 2025:
 
 ```txt
-  2025/
-    06/
-      1/
-      03.md
+2025/
+  06/
+    1/
+      06.md
 ```
 
-## Create a not
+## Prerequisites
 
-```
-cargo run not
+- [Rust](https://www.rust-lang.org/tools/install) (includes `cargo`)
+
+## Create a note
+
+```sh
+cargo run new
 ```
 
 Or
 
-```
+```sh
 cargo run n
 ```
 
@@ -29,29 +33,53 @@ cargo run n
 
 Begin a work session:
 
-```
+```sh
 cargo run start-work
 ```
 
 Or
 
-```
+```sh
 cargo run sw
 ```
 
 End a work session:
 
-```
+```sh
 cargo run end-work
 ```
 
 Or
 
-```
+```sh
 cargo run ew
 ```
 
+Display work stats:
+
+```sh
+cargo run work-stats
+```
+
+Or
+
+```sh
+cargo run ws
+```
+
 For now, the data is only annotated, but these annotations are not yet used or processed.
+
+## Create a new folder
+
+```sh
+cargo run new-folder
+```
+
+Or
+
+```sh
+cargo run nf
+```
 
 ## Test
 
@@ -78,7 +106,7 @@ cargo fmt -- --check
 Copy `config.toml.dist` into `config.toml` and update the values. For example:
 
 ```toml
-not_path="/home/gaetan/not"
+not_path="/path/to/your/notes"
 language="fr"
 ```
 
@@ -93,7 +121,7 @@ cargo build --release
 Optional: add an alias
 
 ```sh
-alias nost="RUST_LOG=warn /your/path/for/nost-not/nost/target/release/nost"
+alias nost="RUST_LOG=warn /path/to/nost/target/release/nost"
 ```
 
 ## Work plugin
