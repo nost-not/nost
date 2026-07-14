@@ -50,18 +50,6 @@ Or
 cargo run n
 ```
 
-## Create a new folder
-
-```sh
-cargo run new-folder
-```
-
-Or
-
-```sh
-cargo run nf
-```
-
 ## Work sessions (WIP)
 
 Begin a work session:
@@ -99,8 +87,6 @@ Or
 ```sh
 cargo run ws
 ```
-
-For now, the data is only annotated, but these annotations are not yet used or processed.
 
 ### Work plugin configuration
 
