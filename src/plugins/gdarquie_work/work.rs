@@ -181,7 +181,7 @@ pub fn compose_monthly_work_stats(stats: MonthlyWorkStats) -> String {
 
             stats_content.push_str(&format!(
                 "| {} | {} | {:.2} | {:.2} |\n",
-                &weekday, &work_stat.day, hours, cumulative_week_hours
+                weekday, work_stat.day, hours, cumulative_week_hours
             ));
         }
     }

@@ -31,7 +31,7 @@ pub fn create_file(title: Option<String>) -> std::io::Result<String> {
         None => name(),
     };
 
-    let full_not_file_path = format!("{}{}", &not_file_path, not_file_name);
+    let full_not_file_path = format!("{}{}", not_file_path, not_file_name);
 
     // create folders if needed
     if let Err(e) = create_dir_all(&not_file_path) {
@@ -85,14 +85,14 @@ pub fn create_note_file_with_folders(note_type: String) -> std::io::Result<Strin
 
     log::debug!(
         "🚨 Creating note file with folders at path: {}",
-        &today_folder_path
+        today_folder_path
     );
 
     let now: DateTime<Local> = Local::now();
     let today_file_name = get_day_as_string(now);
     let today_file_path = format!(
         "{}{}{}{}{}",
-        &today_folder_path, today_file_name, ".", note_type, ".md"
+        today_folder_path, today_file_name, ".", note_type, ".md"
     );
 
     // only create if not does not already exists
@@ -111,7 +111,7 @@ pub fn create_note_file_with_folders(note_type: String) -> std::io::Result<Strin
 
     log::debug!(
         "🚨 Creating note file with folders at path: {}",
-        &today_file_path
+        today_file_path
     );
 
     // create the file
