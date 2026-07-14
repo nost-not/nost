@@ -15,7 +15,7 @@ pub fn new_folder() -> std::io::Result<String> {
             println!("✅ Folder has been created successfully!");
 
             // create a the config { "created_at": "2025-12-31T23:59:59Z", "type": "day" }
-            let config_file_path = format!("{}{}", &new_folder_path, ".not-config.json");
+            let config_file_path = format!("{}{}", new_folder_path, ".not-config.json");
 
             match File::create(&config_file_path) {
                 Ok(_file) => {
@@ -28,7 +28,7 @@ pub fn new_folder() -> std::io::Result<String> {
             };
 
             // create the default file in the folder
-            let default_file_path = format!("{}{}", &new_folder_path, "not.md");
+            let default_file_path = format!("{}{}", new_folder_path, "not.md");
 
             match File::create(&default_file_path) {
                 Ok(_file) => {
