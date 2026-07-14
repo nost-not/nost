@@ -25,7 +25,7 @@ pub fn is_project_initialized() -> bool {
     let project_config_path = format!("{}/.nost/project.json", not_path);
     log::debug!(
         "Checking if configuration exists at path: {}",
-        &project_config_path
+        project_config_path
     );
     Path::new(&project_config_path).is_file()
 }
@@ -56,7 +56,7 @@ pub fn initialize_project() -> Result<String, Box<dyn std::error::Error>> {
     // create en empty configuration file
     let default_config_path = format!("{}{}", configuration_path, "project.json");
     let config_file = std::fs::File::create(&default_config_path)?;
-    log::debug!("Configuration initialized at path: {}", &configuration_path);
+    log::debug!("Configuration initialized at path: {}", configuration_path);
 
     // append inital content to the configuration file
     const NOST_VERSION: &str = env!("CARGO_PKG_VERSION");
