@@ -17,6 +17,27 @@ For example, if you add a note on the 6th of June 2025:
 
 - [Rust](https://www.rust-lang.org/tools/install) (includes `cargo`)
 
+## Build the app
+
+```sh
+cargo build --release
+```
+
+Optional: add an alias
+
+```sh
+alias nost="RUST_LOG=warn /path/to/nost/target/release/nost"
+```
+
+## Configure the app
+
+Copy `config.toml.dist` into `config.toml` and update the values. For example:
+
+```toml
+not_path="/path/to/your/notes"
+language="fr"
+```
+
 ## Create a note
 
 ```sh
@@ -29,7 +50,19 @@ Or
 cargo run n
 ```
 
-## (WIP) Use not for working
+## Create a new folder
+
+```sh
+cargo run new-folder
+```
+
+Or
+
+```sh
+cargo run nf
+```
+
+## Work sessions (WIP)
 
 Begin a work session:
 
@@ -69,66 +102,31 @@ cargo run ws
 
 For now, the data is only annotated, but these annotations are not yet used or processed.
 
-## Create a new folder
-
-```sh
-cargo run new-folder
-```
-
-Or
-
-```sh
-cargo run nf
-```
-
-## Test
-
-Unit tests:
-
-```
-cargo test
-```
-
-Style:
-
-```
-cargo clippy --verbose -- -D warnings
-```
-
-Linter:
-
-```
-cargo fmt -- --check
-```
-
-## Configure the app
-
-Copy `config.toml.dist` into `config.toml` and update the values. For example:
-
-```toml
-not_path="/path/to/your/notes"
-language="fr"
-```
-
-## Build the app
-
-Build the app with cargo
-
-```sh
-cargo build --release
-```
-
-Optional: add an alias
-
-```sh
-alias nost="RUST_LOG=warn /path/to/nost/target/release/nost"
-```
-
-## Work plugin
+### Work plugin configuration
 
 For computing work stats, add some env vars:
 
 ```sh
 export NOST_WORK_SALARY=0
 export NOST_WORK_CURRENCY=EUR
+```
+
+## Development
+
+Unit tests:
+
+```sh
+cargo test
+```
+
+Style:
+
+```sh
+cargo clippy --verbose -- -D warnings
+```
+
+Linter:
+
+```sh
+cargo fmt -- --check
 ```
