@@ -31,7 +31,7 @@ pub fn create_file(title: Option<String>) -> std::io::Result<String> {
         None => name(),
     };
 
-    let full_not_file_path = format!("{}{}", &not_file_path, not_file_name);
+    let full_not_file_path = format!("{}{}", not_file_path, not_file_name);
 
     // create folders if needed
     if let Err(e) = create_dir_all(&not_file_path) {
