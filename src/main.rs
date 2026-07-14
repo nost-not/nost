@@ -34,8 +34,6 @@ fn main() {
         end_work();
     } else if args[1] == "work-stats" || args[1] == "ws" {
         work_stats(args);
-    } else if args[1] == "new-folder" || args[1] == "nf" {
-        let _ = commands::new_folder::new_folder();
     } else if args[1] == "new-default" || args[1] == "nn" {
         // wip
         new();
