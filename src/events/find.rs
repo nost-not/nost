@@ -19,7 +19,6 @@ pub fn find_last_work_event() -> Option<Event> {
     let events: Vec<Event> = serde_json::from_str(&content).ok()?;
 
     events.into_iter().rev().find(|e| {
-        e.event == EventName::StartWork.to_string()
-            || e.event == EventName::StopWork.to_string()
+        e.event == EventName::StartWork.to_string() || e.event == EventName::StopWork.to_string()
     })
 }
