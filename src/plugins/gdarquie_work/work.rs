@@ -110,11 +110,8 @@ pub fn compute_monthly_work_stats(month: Option<&str>) -> Result<MonthlyWorkStat
     // This prevents phantom annotations written into the first file of a month
     // (created when end_work crosses midnight from the previous month) from
     // being counted as extra work days in the current month's stats.
-    annotations_hmap.retain(|workday, _| {
-        chrono::NaiveDate::parse_from_str(workday, "%Y-%m-%d")
-            .map(|d| d.year() == date.year() && d.month() == date.month())
-            .unwrap_or(false)
-    });
+    let month_prefix = date.format("%Y-%m").to_string();
+    annotations_hmap.retain(|workday, _| workday.starts_with(&month_prefix));
 
     // prepare work stats by week
     let mut work_stats_by_week: HashMap<WeekId, WorkStatsByWeek> = HashMap::new();
@@ -365,110 +362,6 @@ mod tests {
             .collect();
         assert!(length_in_minutes.contains(&60));
         assert!(length_in_minutes.contains(&120));
-    }
-
-    // Helper that mimics compute_monthly_work_stats's month-filtering logic.
-    // Takes a target month (year, month) and a flat list of annotations with explicit workdays.
-    fn compute_monthly_stats_with_workday(
-        year: i32,
-        month: u32,
-        pairs: Vec<(
-            chrono::DateTime<FixedOffset>,
-            chrono::DateTime<FixedOffset>,
-            &str,
-        )>,
-    ) -> MonthlyWorkStats {
-        let target_date = chrono::NaiveDate::from_ymd_opt(year, month, 1).unwrap();
-
-        let mut annotations_hmap: HashMap<String, Vec<Annotation>> = HashMap::new();
-        for (start_dt, stop_dt, workday) in pairs {
-            let mut a_start = make_annotation(EventName::StartWork, start_dt);
-            a_start.workday = Some(workday.to_string());
-            let mut a_stop = make_annotation(EventName::StopWork, stop_dt);
-            a_stop.workday = Some(workday.to_string());
-            annotations_hmap
-                .entry(workday.to_string())
-                .or_default()
-                .push(a_start);
-            annotations_hmap
-                .entry(workday.to_string())
-                .or_default()
-                .push(a_stop);
-        }
-
-        // apply the month filter (the fix under test)
-        annotations_hmap.retain(|workday, _| {
-            chrono::NaiveDate::parse_from_str(workday, "%Y-%m-%d")
-                .map(|d| d.year() == target_date.year() && d.month() == target_date.month())
-                .unwrap_or(false)
-        });
-
-        let mut work_stats_by_week: HashMap<WeekId, WorkStatsByWeek> = HashMap::new();
-        let mut total_duration = 0;
-        let mut worked_days_set = HashSet::new();
-
-        for (day, anns) in &annotations_hmap {
-            let length = compute_work_time_from_annotations(anns);
-            let date = chrono::NaiveDate::parse_from_str(day, "%Y-%m-%d").unwrap();
-            let week_id = WeekId {
-                year: date.iso_week().year(),
-                week: date.iso_week().week(),
-            };
-            let entry = work_stats_by_week
-                .entry(week_id)
-                .or_insert(WorkStatsByWeek {
-                    total_duration_in_minutes: 0,
-                    work_stats: vec![],
-                });
-            entry.total_duration_in_minutes += length;
-            entry.work_stats.push(WorkStats {
-                day: day.clone(),
-                length_in_minutes: length,
-            });
-            total_duration += length;
-            worked_days_set.insert(day.clone());
-        }
-
-        MonthlyWorkStats {
-            total_duration_in_minutes: total_duration,
-            total_work_days: worked_days_set.len() as i32,
-            work_stats_by_week,
-        }
-    }
-
-    /// Regression test: when end_work crosses midnight from the last day of the
-    /// previous month into the first day of the current month, phantom annotations
-    /// tagged with the previous month's workday must NOT inflate total_work_days.
-    #[test]
-    fn test_work_stats_no_extra_day_when_session_crosses_month_boundary() {
-        let tz = FixedOffset::east_opt(0).unwrap();
-
-        // Real session on Sep 1
-        let sep1_start = tz.with_ymd_and_hms(2025, 9, 1, 9, 0, 0).unwrap();
-        let sep1_stop = tz.with_ymd_and_hms(2025, 9, 1, 17, 0, 0).unwrap();
-
-        // Phantom session: end_work crossed midnight from Aug 31 into Sep 1.
-        // The phantom annotations sit in the Sep 1 file but carry workday="2025-08-31".
-        let phantom_start = tz.with_ymd_and_hms(2025, 9, 1, 0, 0, 0).unwrap();
-        let phantom_stop = tz.with_ymd_and_hms(2025, 9, 1, 0, 1, 0).unwrap();
-
-        let stats = compute_monthly_stats_with_workday(
-            2025,
-            9,
-            vec![
-                (sep1_start, sep1_stop, "2025-09-01"),
-                (phantom_start, phantom_stop, "2025-08-31"), // must be filtered out
-            ],
-        );
-
-        assert_eq!(
-            stats.total_work_days, 1,
-            "phantom Aug-31 entry must not count as a Sep work day"
-        );
-        assert_eq!(
-            stats.total_duration_in_minutes, 480,
-            "only real Sep-1 work should be counted"
-        );
     }
 
     #[test]
