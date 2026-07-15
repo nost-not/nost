@@ -372,10 +372,13 @@ mod tests {
     fn compute_monthly_stats_with_workday(
         year: i32,
         month: u32,
-        pairs: Vec<(chrono::DateTime<FixedOffset>, chrono::DateTime<FixedOffset>, &str)>,
+        pairs: Vec<(
+            chrono::DateTime<FixedOffset>,
+            chrono::DateTime<FixedOffset>,
+            &str,
+        )>,
     ) -> MonthlyWorkStats {
-        let target_date =
-            chrono::NaiveDate::from_ymd_opt(year, month, 1).unwrap();
+        let target_date = chrono::NaiveDate::from_ymd_opt(year, month, 1).unwrap();
 
         let mut annotations_hmap: HashMap<String, Vec<Annotation>> = HashMap::new();
         for (start_dt, stop_dt, workday) in pairs {
@@ -411,10 +414,12 @@ mod tests {
                 year: date.iso_week().year(),
                 week: date.iso_week().week(),
             };
-            let entry = work_stats_by_week.entry(week_id).or_insert(WorkStatsByWeek {
-                total_duration_in_minutes: 0,
-                work_stats: vec![],
-            });
+            let entry = work_stats_by_week
+                .entry(week_id)
+                .or_insert(WorkStatsByWeek {
+                    total_duration_in_minutes: 0,
+                    work_stats: vec![],
+                });
             entry.total_duration_in_minutes += length;
             entry.work_stats.push(WorkStats {
                 day: day.clone(),
@@ -456,8 +461,14 @@ mod tests {
             ],
         );
 
-        assert_eq!(stats.total_work_days, 1, "phantom Aug-31 entry must not count as a Sep work day");
-        assert_eq!(stats.total_duration_in_minutes, 480, "only real Sep-1 work should be counted");
+        assert_eq!(
+            stats.total_work_days, 1,
+            "phantom Aug-31 entry must not count as a Sep work day"
+        );
+        assert_eq!(
+            stats.total_duration_in_minutes, 480,
+            "only real Sep-1 work should be counted"
+        );
     }
 
     #[test]
