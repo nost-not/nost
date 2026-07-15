@@ -58,24 +58,29 @@ fn add_stop_work_annotations(last_annotation: &WorkAnnotationWithPath, path: &Pa
                 chrono::Local::now().format("%:z")
             );
 
-            // START_WORK for today
+            // START_WORK for today — use today as workday, not yesterday's
             annotate(
                 Some(&today_datetime_string),
                 EventName::StartWork,
                 None,
                 path.to_str().unwrap(),
-                last_annotation.annotation.workday.as_deref(),
+                Some(today.as_str()),
             );
         }
     }
 
-    // we add a STOP_WORK annotation for today
+    // we add a STOP_WORK annotation for today — use today as workday when crossing midnight
+    let stop_workday = if last_annotation.annotation.workday.as_deref() == Some(&today) {
+        last_annotation.annotation.workday.as_deref()
+    } else {
+        Some(today.as_str())
+    };
     annotate(
         None,
         EventName::StopWork,
         None,
         path.to_str().unwrap(),
-        last_annotation.annotation.workday.as_deref(),
+        stop_workday,
     );
 }
 
