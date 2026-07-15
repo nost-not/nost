@@ -105,6 +105,14 @@ pub fn compute_monthly_work_stats(month: Option<&str>) -> Result<MonthlyWorkStat
             .or_default()
             .push(annotation);
     }
+
+    // Discard workdays that do not belong to the requested month.
+    // This prevents phantom annotations written into the first file of a month
+    // (created when end_work crosses midnight from the previous month) from
+    // being counted as extra work days in the current month's stats.
+    let month_prefix = date.format("%Y-%m").to_string();
+    annotations_hmap.retain(|workday, _| workday.starts_with(&month_prefix));
+
     // prepare work stats by week
     let mut work_stats_by_week: HashMap<WeekId, WorkStatsByWeek> = HashMap::new();
     let mut total_duration = 0;
