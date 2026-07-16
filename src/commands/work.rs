@@ -24,7 +24,9 @@ pub fn determine_work_action(last_event: Option<&Event>) -> WorkAction {
         // Last event was a stop → open a new session
         Some(e) if e.event == EventName::StopWork.to_string() => WorkAction::Start,
         // Last event was a start → close the current session
-        _ => WorkAction::Stop,
+        Some(e) if e.event == EventName::StartWork.to_string() => WorkAction::Stop,
+        // Any other event (e.g. CreateNot) → start a fresh session
+        _ => WorkAction::Start,
     }
 }
 
@@ -86,9 +88,8 @@ mod tests {
 
     #[test]
     fn test_determine_work_action_after_create_not() {
-        // A non-work event (e.g. CreateNot) is treated as "still open" → stop
-        // (shouldn't normally appear as last work event, but defensive check)
+        // A non-work event (e.g. CreateNot) → start a fresh session
         let event = make_event(EventName::CreateNot);
-        assert_eq!(determine_work_action(Some(&event)), WorkAction::Stop);
+        assert_eq!(determine_work_action(Some(&event)), WorkAction::Start);
     }
 }
