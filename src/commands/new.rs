@@ -1,9 +1,17 @@
 use crate::{
+    events::{find::find_last_work_event, models::EventName},
     files::create::{create_file, create_note_file_with_folders},
     projects::initialize::initialize_project,
 };
 
 pub fn new_legacy(args: Vec<String>) {
+    // Warn if a work session is still open
+    if let Some(last) = find_last_work_event() {
+        if last.event == EventName::StartWork.to_string() {
+            eprintln!("⚠️  Warning: you should first end the last work session before creating a new note.");
+        }
+    }
+
     if args.len() > 2 {
         println!("Creating not with title: {}", args[1]);
         create_file(Some(args[2].clone())).unwrap();
