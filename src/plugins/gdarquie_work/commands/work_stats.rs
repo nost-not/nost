@@ -34,7 +34,7 @@ pub fn work_stats(args: Vec<String>) {
     let stats_content = work::compose_monthly_work_stats(stats);
 
     if in_not {
-        let file_path = create_file(None).unwrap();
+        let file_path = create_file(None, None).unwrap();
         let _ = append(PathBuf::from(file_path), &stats_content);
         println!("Stats appended to the current not.");
     } else {

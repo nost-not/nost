@@ -89,7 +89,7 @@ pub fn has_active_session(last_work_annotation: &WorkAnnotationWithPath) -> bool
 
 pub fn end_work() {
     let last_work_annotation = find_last_work_annotation().unwrap();
-    let path = Path::new(&create_file(None).unwrap()).to_path_buf();
+    let path = Path::new(&create_file(None, None).unwrap()).to_path_buf();
 
     // find last active session
     if !has_active_session(&last_work_annotation) {
