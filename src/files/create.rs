@@ -21,7 +21,7 @@ use crate::{
     },
 };
 
-pub fn create_file(title: Option<String>) -> std::io::Result<String> {
+pub fn create_file(title: Option<String>, date: Option<String>) -> std::io::Result<String> {
     // handle paths
     let not_path = get_value_from_config("not_path").unwrap();
     let not_file_path = build_file_path_for_now(&not_path);
@@ -66,8 +66,8 @@ pub fn create_file(title: Option<String>) -> std::io::Result<String> {
     );
 
     let date_line = match get_value_from_config("language").unwrap().as_str() {
-        "fr" => get_date_as_text_fr(),
-        _ => get_date_as_text_en(), // default to English
+        "fr" => get_date_as_text_fr(date.clone()),
+        _ => get_date_as_text_en(date.clone()), // default to English
     };
 
     append(full_not_file_path.clone().into(), &date_line)
@@ -126,8 +126,8 @@ pub fn create_note_file_with_folders(note_type: String) -> std::io::Result<Strin
     };
 
     let date_line = match get_value_from_config("language").unwrap().as_str() {
-        "fr" => get_date_as_text_fr(),
-        _ => get_date_as_text_en(), // default to English
+        "fr" => get_date_as_text_fr(None),
+        _ => get_date_as_text_en(None), // default to English
     };
 
     append(today_file_path.clone().into(), &date_line).expect("🛑 Failed to append date as text.");
