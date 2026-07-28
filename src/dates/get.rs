@@ -43,9 +43,11 @@ pub fn get_date_as_text_en(custom_date: Option<String>) -> String {
         Some(date_str) => {
             // Parse YYYY-MM-DD format
             match NaiveDate::parse_from_str(&date_str, "%Y-%m-%d") {
-                Ok(naive_date) => {
-                    naive_date.and_hms_opt(0, 0, 0).unwrap().and_local_timezone(Local).unwrap()
-                }
+                Ok(naive_date) => naive_date
+                    .and_hms_opt(0, 0, 0)
+                    .unwrap()
+                    .and_local_timezone(Local)
+                    .unwrap(),
                 Err(_) => Local::now(),
             }
         }
@@ -69,9 +71,11 @@ pub fn get_date_as_text_fr(custom_date: Option<String>) -> String {
         Some(date_str) => {
             // Parse YYYY-MM-DD format
             match NaiveDate::parse_from_str(&date_str, "%Y-%m-%d") {
-                Ok(naive_date) => {
-                    naive_date.and_hms_opt(0, 0, 0).unwrap().and_local_timezone(Local).unwrap()
-                }
+                Ok(naive_date) => naive_date
+                    .and_hms_opt(0, 0, 0)
+                    .unwrap()
+                    .and_local_timezone(Local)
+                    .unwrap(),
                 Err(_) => Local::now(),
             }
         }
