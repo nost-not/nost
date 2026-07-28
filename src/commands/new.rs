@@ -19,11 +19,11 @@ pub fn new_legacy(args: Vec<String>) {
         }
     }
 
-    if title.is_some() {
-        println!("Creating not with title: {}", title.as_ref().unwrap());
+    if let Some(ref t) = title {
+        println!("Creating not with title: {}", t);
     }
-    if date.is_some() {
-        println!("Creating note for date: {}", date.as_ref().unwrap());
+    if let Some(ref d) = date {
+        println!("Creating note for date: {}", d);
     }
 
     create_file(title, date).unwrap();
