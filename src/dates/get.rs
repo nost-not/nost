@@ -1,4 +1,4 @@
-use chrono::{DateTime, Datelike, Local, NaiveDate};
+use chrono::{DateTime, Datelike, Local};
 
 pub fn get_now_as_string() -> String {
     let now: DateTime<Local> = Local::now();
@@ -38,16 +38,7 @@ fn get_day_suffix(day: u32) -> &'static str {
     }
 }
 
-pub fn get_date_as_text_en(custom_date: Option<NaiveDate>) -> String {
-    let datetime = match custom_date {
-        Some(naive_date) => naive_date
-            .and_hms_opt(0, 0, 0)
-            .unwrap()
-            .and_local_timezone(Local)
-            .unwrap(),
-        None => Local::now(),
-    };
-
+pub fn get_date_as_text_en(datetime: DateTime<Local>) -> String {
     let weekday = datetime.format("%A").to_string(); // e.g., "Thursday"
     let day = datetime.day(); // e.g., 7
     let month = datetime.format("%B").to_string(); // e.g., "August"
@@ -60,16 +51,7 @@ pub fn get_date_as_text_en(custom_date: Option<NaiveDate>) -> String {
     date_line
 }
 
-pub fn get_date_as_text_fr(custom_date: Option<NaiveDate>) -> String {
-    let datetime = match custom_date {
-        Some(naive_date) => naive_date
-            .and_hms_opt(0, 0, 0)
-            .unwrap()
-            .and_local_timezone(Local)
-            .unwrap(),
-        None => Local::now(),
-    };
-
+pub fn get_date_as_text_fr(datetime: DateTime<Local>) -> String {
     let weekdays = [
         "Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi",
     ];

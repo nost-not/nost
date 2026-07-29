@@ -4,9 +4,7 @@ use std::{
     path::Path,
 };
 
-use chrono::{DateTime, Local};
-
-use chrono::NaiveDate;
+use chrono::{DateTime, Local, NaiveDate};
 
 use crate::{
     annotations::annotate::annotate,
@@ -67,9 +65,18 @@ pub fn create_file(title: Option<String>, date: Option<NaiveDate>) -> std::io::R
         None,
     );
 
+    let datetime = match date {
+        Some(naive_date) => naive_date
+            .and_hms_opt(0, 0, 0)
+            .unwrap()
+            .and_local_timezone(Local)
+            .unwrap(),
+        None => Local::now(),
+    };
+
     let date_line = match get_value_from_config("language").unwrap().as_str() {
-        "fr" => get_date_as_text_fr(date),
-        _ => get_date_as_text_en(date), // default to English
+        "fr" => get_date_as_text_fr(datetime),
+        _ => get_date_as_text_en(datetime), // default to English
     };
 
     append(full_not_file_path.clone().into(), &date_line)
@@ -128,8 +135,8 @@ pub fn create_note_file_with_folders(note_type: String) -> std::io::Result<Strin
     };
 
     let date_line = match get_value_from_config("language").unwrap().as_str() {
-        "fr" => get_date_as_text_fr(None),
-        _ => get_date_as_text_en(None), // default to English
+        "fr" => get_date_as_text_fr(Local::now()),
+        _ => get_date_as_text_en(Local::now()), // default to English
     };
 
     append(today_file_path.clone().into(), &date_line).expect("🛑 Failed to append date as text.");
