@@ -16,7 +16,9 @@ use crate::{
     },
     files::{
         append::append,
-        build_paths::{build_file_path_for_date, build_file_path_for_now, build_folder_path_for_now},
+        build_paths::{
+            build_file_path_for_date, build_file_path_for_now, build_folder_path_for_now,
+        },
         name::{name, name_for_date},
     },
 };

@@ -18,7 +18,13 @@ pub fn build_file_path_for_date(base_path: &str, date: chrono::NaiveDate) -> Str
     let year = date.year();
     let month = format!("{:02}", date.month());
 
-    format!("{}/{}/{}/{}/", base_path, year, month, get_week_of_month_for_date(date))
+    format!(
+        "{}/{}/{}/{}/",
+        base_path,
+        year,
+        month,
+        get_week_of_month_for_date(date)
+    )
 }
 
 pub fn build_folder_path_for_now(base_path: &str) -> String {
