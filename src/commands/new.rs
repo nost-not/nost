@@ -1,32 +1,31 @@
+use chrono::NaiveDate;
+
 use crate::{
     files::create::{create_file, create_note_file_with_folders},
     projects::initialize::initialize_project,
 };
 
 pub fn new_legacy(args: Vec<String>) {
-    // Parse command line arguments
-    let mut title: Option<String> = None;
-    let mut date: Option<String> = None;
+    // Expect exactly one argument: a date in YYYY-MM-DD format
+    let date_arg = args.get(2);
 
-    let mut i = 2;
-    while i < args.len() {
-        if args[i] == "--date" && i + 1 < args.len() {
-            date = Some(args[i + 1].clone());
-            i += 2;
-        } else {
-            title = Some(args[i].clone());
-            i += 1;
+    let date = match date_arg {
+        Some(arg) => match NaiveDate::parse_from_str(arg, "%Y-%m-%d") {
+            Ok(d) => d,
+            Err(_) => {
+                eprintln!("🛑 Invalid date format: '{}'. Expected: YYYY-MM-DD", arg);
+                std::process::exit(1);
+            }
+        },
+        None => {
+            eprintln!("🛑 Missing date argument. Expected: YYYY-MM-DD");
+            std::process::exit(1);
         }
-    }
+    };
 
-    if let Some(ref t) = title {
-        println!("Creating not with title: {}", t);
-    }
-    if let Some(ref d) = date {
-        println!("Creating note for date: {}", d);
-    }
+    println!("Creating legacy note for date: {}", date);
 
-    create_file(title, date).unwrap();
+    create_file(None, Some(date)).unwrap();
 
     std::process::exit(0);
 }
