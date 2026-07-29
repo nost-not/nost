@@ -25,7 +25,7 @@ pub fn new_legacy(args: Vec<String>) {
         None => println!("Creating legacy note for today..."),
     }
 
-    create_file(None, date).unwrap();
+    create_file(date).unwrap();
 
     std::process::exit(0);
 }

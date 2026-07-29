@@ -21,15 +21,12 @@ use crate::{
     },
 };
 
-pub fn create_file(title: Option<String>, date: Option<NaiveDate>) -> std::io::Result<String> {
+pub fn create_file(date: Option<NaiveDate>) -> std::io::Result<String> {
     // handle paths
     let not_path = get_value_from_config("not_path").unwrap();
     let not_file_path = build_file_path_for_now(&not_path);
 
-    let not_file_name = match &title {
-        Some(file_title) => file_title.clone(), // todo: validate title here
-        None => name(),
-    };
+    let not_file_name = name();
 
     let full_not_file_path = format!("{}{}", not_file_path, not_file_name);
 
