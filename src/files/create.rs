@@ -16,17 +16,19 @@ use crate::{
     },
     files::{
         append::append,
-        build_paths::{build_file_path_for_now, build_folder_path_for_now},
-        name::name,
+        build_paths::{build_file_path_for_date, build_file_path_for_now, build_folder_path_for_now},
+        name::{name, name_for_date},
     },
 };
 
 pub fn create_file(date: Option<NaiveDate>) -> std::io::Result<String> {
     // handle paths
     let not_path = get_value_from_config("not_path").unwrap();
-    let not_file_path = build_file_path_for_now(&not_path);
 
-    let not_file_name = name();
+    let (not_file_path, not_file_name) = match date {
+        Some(d) => (build_file_path_for_date(&not_path, d), name_for_date(d)),
+        None => (build_file_path_for_now(&not_path), name()),
+    };
 
     let full_not_file_path = format!("{}{}", not_file_path, not_file_name);
 

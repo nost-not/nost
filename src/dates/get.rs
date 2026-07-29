@@ -11,17 +11,18 @@ pub fn get_day_as_string(datetime: DateTime<Local>) -> String {
 
 pub fn get_week_of_month() -> u32 {
     let today = chrono::Local::now().date_naive();
+    get_week_of_month_for_date(today)
+}
 
+pub fn get_week_of_month_for_date(date: chrono::NaiveDate) -> u32 {
     // Get the first day of the month
-    let first_of_month = chrono::NaiveDate::from_ymd_opt(today.year(), today.month(), 1).unwrap();
+    let first_of_month = chrono::NaiveDate::from_ymd_opt(date.year(), date.month(), 1).unwrap();
 
     // Get the weekday of the first day (0 = Monday, 6 = Sunday)
     let first_weekday = first_of_month.weekday().num_days_from_monday();
 
     // Calculate days since the first Monday of the month
-    // If month starts on Monday (0), offset is 0
-    // If month starts on Tuesday (1), offset is 1, etc.
-    let days_since_first_monday = (today.day() - 1) + first_weekday;
+    let days_since_first_monday = (date.day() - 1) + first_weekday;
 
     (days_since_first_monday / 7) + 1
 }
