@@ -6,26 +6,26 @@ use crate::{
 };
 
 pub fn new_legacy(args: Vec<String>) {
-    // Expect exactly one argument: a date in YYYY-MM-DD format
-    let date_arg = args.get(2);
+    // Optional date argument in YYYY-MM-DD format
+    let date_input = args.get(2);
 
-    let date = match date_arg {
+    let date = match date_input {
         Some(arg) => match NaiveDate::parse_from_str(arg, "%Y-%m-%d") {
-            Ok(d) => d,
+            Ok(d) => Some(d),
             Err(_) => {
                 eprintln!("🛑 Invalid date format: '{}'. Expected: YYYY-MM-DD", arg);
                 std::process::exit(1);
             }
         },
-        None => {
-            eprintln!("🛑 Missing date argument. Expected: YYYY-MM-DD");
-            std::process::exit(1);
-        }
+        None => None,
     };
 
-    println!("Creating legacy note for date: {}", date);
+    match date {
+        Some(d) => println!("Creating legacy note for date: {}", d),
+        None => println!("Creating legacy note for today..."),
+    }
 
-    create_file(None, Some(date)).unwrap();
+    create_file(None, date).unwrap();
 
     std::process::exit(0);
 }
