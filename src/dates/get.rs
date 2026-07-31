@@ -81,3 +81,54 @@ pub fn get_date_as_text_fr(datetime: DateTime<Local>) -> String {
 
     date_line
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::NaiveDate;
+
+    fn date(y: i32, m: u32, d: u32) -> NaiveDate {
+        NaiveDate::from_ymd_opt(y, m, d).unwrap()
+    }
+
+    // July 2026: the 1st is a Wednesday. Weeks start on Monday, so the first
+    // (partial) week is Wed 1 -> Sun 5, and week 2 starts Mon 6.
+    #[test]
+    fn first_day_of_month_is_week_one() {
+        assert_eq!(get_week_of_month_for_date(date(2026, 7, 1)), 1);
+    }
+
+    #[test]
+    fn last_day_of_first_partial_week_is_week_one() {
+        // Sunday July 5th still belongs to week 1.
+        assert_eq!(get_week_of_month_for_date(date(2026, 7, 5)), 1);
+    }
+
+    #[test]
+    fn first_monday_starts_week_two() {
+        // Monday July 6th is the start of week 2.
+        assert_eq!(get_week_of_month_for_date(date(2026, 7, 6)), 2);
+    }
+
+    #[test]
+    fn end_of_month_week_number() {
+        // Friday July 31st -> week 5.
+        assert_eq!(get_week_of_month_for_date(date(2026, 7, 31)), 5);
+    }
+
+    // June 2026: the 1st is a Monday, so week boundaries align cleanly.
+    #[test]
+    fn month_starting_on_monday() {
+        assert_eq!(get_week_of_month_for_date(date(2026, 6, 1)), 1);
+        assert_eq!(get_week_of_month_for_date(date(2026, 6, 7)), 1);
+        assert_eq!(get_week_of_month_for_date(date(2026, 6, 8)), 2);
+    }
+
+    // February 2026: the 1st is a Sunday (worst case: first week is a single day).
+    #[test]
+    fn month_starting_on_sunday() {
+        // Sunday Feb 1st is week 1 (alone), Monday Feb 2nd starts week 2.
+        assert_eq!(get_week_of_month_for_date(date(2026, 2, 1)), 1);
+        assert_eq!(get_week_of_month_for_date(date(2026, 2, 2)), 2);
+    }
+}
