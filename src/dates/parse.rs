@@ -1,16 +1,26 @@
 use chrono::NaiveDate;
+use regex::Regex;
+use std::sync::LazyLock;
 
-/// Parse a date string in ISO 8601 format (YYYY-MM-DD) into a `NaiveDate`.
+static ISO_DATE_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^\d{4}-\d{2}-\d{2}$").expect("valid ISO date regex"));
+
+/// Parses an ISO 8601 date (`YYYY-MM-DD`) into a `NaiveDate`.
 ///
-/// Returns a user-facing error message on failure, suitable for display.
-pub fn parse_iso_date(s: &str) -> Result<NaiveDate, String> {
-    // Enforce strict zero-padded YYYY-MM-DD (chrono's %Y-%m-%d otherwise
-    // accepts unpadded values like "2026-7-31").
-    if s.len() != 10 {
-        return Err(format!("🛑 Invalid date format: '{}'. Expected: YYYY-MM-DD", s));
+/// Returns a user-facing error message if parsing fails.
+pub fn parse_iso_date(date_str: &str) -> Result<NaiveDate, String> {
+    if !ISO_DATE_REGEX.is_match(date_str) {
+        return Err(format!(
+            "🛑 Invalid date format: '{}'. Expected: YYYY-MM-DD",
+            date_str
+        ));
     }
-    NaiveDate::parse_from_str(s, "%Y-%m-%d")
-        .map_err(|_| format!("🛑 Invalid date format: '{}'. Expected: YYYY-MM-DD", s))
+    NaiveDate::parse_from_str(date_str, "%Y-%m-%d").map_err(|_| {
+        format!(
+            "🛑 Invalid date format: '{}'. Expected: YYYY-MM-DD",
+            date_str
+        )
+    })
 }
 
 #[cfg(test)]
