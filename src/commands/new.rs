@@ -1,19 +1,16 @@
-use chrono::NaiveDate;
-
 use crate::{
+    dates::parse::parse_iso_date,
     files::create::{create_file, create_note_file_with_folders},
     projects::initialize::initialize_project,
 };
 
 pub fn new_legacy(args: Vec<String>) {
     // Optional date argument in YYYY-MM-DD format
-    let date_input = args.get(2);
-
-    let date = match date_input {
-        Some(arg) => match NaiveDate::parse_from_str(arg, "%Y-%m-%d") {
+    let date = match args.get(2) {
+        Some(arg) => match parse_iso_date(arg) {
             Ok(d) => Some(d),
-            Err(_) => {
-                eprintln!("🛑 Invalid date format: '{}'. Expected: YYYY-MM-DD", arg);
+            Err(msg) => {
+                eprintln!("{}", msg);
                 std::process::exit(1);
             }
         },
