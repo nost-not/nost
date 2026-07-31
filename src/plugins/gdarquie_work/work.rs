@@ -113,7 +113,22 @@ pub fn compute_monthly_work_stats(month: Option<&str>) -> Result<MonthlyWorkStat
     let month_prefix = date.format("%Y-%m").to_string();
     annotations_hmap.retain(|workday, _| workday.starts_with(&month_prefix));
 
-    // prepare work stats by week
+    let monthly_stats = compute_stats_from_grouped_annotations(&annotations_hmap);
+
+    log::debug!("Work stats computed: {:?}", monthly_stats);
+    Ok(monthly_stats)
+}
+
+/// Compute monthly work stats from annotations already grouped by workday.
+///
+/// This is the pure core of the work-stats computation: it takes a map of
+/// `workday -> annotations` and aggregates total duration, worked days, and
+/// per-week breakdown. It performs no I/O and no month filtering, which makes
+/// it directly unit-testable (and shared between production and tests instead
+/// of being duplicated).
+fn compute_stats_from_grouped_annotations(
+    annotations_hmap: &HashMap<String, Vec<Annotation>>,
+) -> MonthlyWorkStats {
     let mut work_stats_by_week: HashMap<WeekId, WorkStatsByWeek> = HashMap::new();
     let mut total_duration = 0;
     let mut worked_days_set = HashSet::new();
@@ -150,14 +165,11 @@ pub fn compute_monthly_work_stats(month: Option<&str>) -> Result<MonthlyWorkStat
         worked_days_set.insert(day.clone());
     }
 
-    let monthly_stats = MonthlyWorkStats {
+    MonthlyWorkStats {
         total_duration_in_minutes: total_duration,
         total_work_days: worked_days_set.len() as i32,
         work_stats_by_week,
-    };
-
-    log::debug!("Work stats computed: {:?}", monthly_stats);
-    Ok(monthly_stats)
+    }
 }
 
 pub fn compose_monthly_work_stats(stats: MonthlyWorkStats) -> String {
@@ -265,55 +277,17 @@ mod tests {
         }
     }
 
-    // todo: check if we really need this function in tests and why not use compute_work_time_from_annotations
+    // Groups annotations by day, then delegates to the shared
+    // `compute_stats_from_grouped_annotations` production helper — so the tests
+    // exercise the real aggregation logic instead of a duplicated copy.
     fn compute_work_stats_from_annotations(annotations: Vec<Annotation>) -> MonthlyWorkStats {
-        // group annotations by day using a hashmap
         let mut annotations_hmap: HashMap<String, Vec<Annotation>> = HashMap::new();
         for annotation in annotations {
             let day = annotation.datetime.format("%Y-%m-%d").to_string();
             annotations_hmap.entry(day).or_default().push(annotation);
         }
 
-        let mut work_stats_by_week: HashMap<WeekId, WorkStatsByWeek> = HashMap::new();
-        let mut total_duration = 0;
-        let mut worked_days_set = HashSet::new();
-
-        for (day, annotation) in annotations_hmap.iter() {
-            let length_in_minutes = compute_work_time_from_annotations(annotation);
-
-            let date = chrono::NaiveDate::parse_from_str(day, "%Y-%m-%d").unwrap();
-            let week_id = WeekId {
-                year: date.iso_week().year(),
-                week: date.iso_week().week(),
-            };
-
-            if let std::collections::hash_map::Entry::Vacant(e) = work_stats_by_week.entry(week_id)
-            {
-                e.insert(WorkStatsByWeek {
-                    total_duration_in_minutes: length_in_minutes,
-                    work_stats: vec![WorkStats {
-                        day: day.clone(),
-                        length_in_minutes,
-                    }],
-                });
-            } else {
-                let week_stats = work_stats_by_week.get_mut(&week_id).unwrap();
-                week_stats.total_duration_in_minutes += length_in_minutes;
-                week_stats.work_stats.push(WorkStats {
-                    day: day.clone(),
-                    length_in_minutes,
-                });
-            }
-
-            total_duration += length_in_minutes;
-            worked_days_set.insert(day.clone());
-        }
-
-        MonthlyWorkStats {
-            total_duration_in_minutes: total_duration,
-            total_work_days: worked_days_set.len() as i32,
-            work_stats_by_week,
-        }
+        compute_stats_from_grouped_annotations(&annotations_hmap)
     }
 
     #[test]
