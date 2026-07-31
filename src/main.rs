@@ -10,9 +10,8 @@ mod statistics;
 use crate::commands::new::{new, new_legacy};
 use crate::commands::stats::stats;
 use crate::commands::work::work;
-use crate::plugins::gdarquie_work::commands::end_work::end_work;
-use crate::plugins::gdarquie_work::commands::start_work::start_work;
-use crate::plugins::gdarquie_work::commands::work_stats::work_stats;
+use crate::plugins::gdarquie_work::plugin::WorkPlugin;
+use crate::plugins::plugin::PluginRegistry;
 use dotenv::dotenv;
 use std::env;
 
@@ -46,15 +45,6 @@ fn main() {
         }
     } else if args[1] == "stats" || args[1] == "s" {
         stats(args);
-    } else if args[1] == "start-work" || args[1] == "sw" {
-        // deprecated
-        start_work(args);
-    } else if args[1] == "end-work" || args[1] == "ew" {
-        // deprecated
-        end_work();
-    } else if args[1] == "work-stats" || args[1] == "ws" {
-        // deprecated
-        work_stats(args);
     } else {
         eprintln!("Unknown command: \"{}\"", args[1]);
         std::process::exit(1);
