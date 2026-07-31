@@ -281,30 +281,28 @@ mod tests {
         for (day, annotation) in annotations_hmap.iter() {
             let length_in_minutes = compute_work_time_from_annotations(annotation);
 
-            let date = chrono::NaiveDate::parse_from_str(&day, "%Y-%m-%d").unwrap();
+            let date = chrono::NaiveDate::parse_from_str(day, "%Y-%m-%d").unwrap();
             let week_id = WeekId {
                 year: date.iso_week().year(),
                 week: date.iso_week().week(),
             };
 
-            if work_stats_by_week.contains_key(&week_id) {
+            if let std::collections::hash_map::Entry::Vacant(e) = work_stats_by_week.entry(week_id)
+            {
+                e.insert(WorkStatsByWeek {
+                    total_duration_in_minutes: length_in_minutes,
+                    work_stats: vec![WorkStats {
+                        day: day.clone(),
+                        length_in_minutes,
+                    }],
+                });
+            } else {
                 let week_stats = work_stats_by_week.get_mut(&week_id).unwrap();
                 week_stats.total_duration_in_minutes += length_in_minutes;
                 week_stats.work_stats.push(WorkStats {
                     day: day.clone(),
                     length_in_minutes,
                 });
-            } else {
-                work_stats_by_week.insert(
-                    week_id,
-                    WorkStatsByWeek {
-                        total_duration_in_minutes: length_in_minutes,
-                        work_stats: vec![WorkStats {
-                            day: day.clone(),
-                            length_in_minutes,
-                        }],
-                    },
-                );
             }
 
             total_duration += length_in_minutes;
