@@ -7,6 +7,7 @@ mod files;
 mod plugins;
 mod projects;
 use crate::commands::new::{new, new_legacy};
+use crate::commands::work::work;
 use crate::plugins::gdarquie_work::commands::end_work::end_work;
 use crate::plugins::gdarquie_work::commands::start_work::start_work;
 use crate::plugins::gdarquie_work::commands::work_stats::work_stats;
@@ -38,8 +39,8 @@ fn main() {
         // wip
         new();
         println!("Creating new default note...");
-    } else if args[1] == "new-start-work" {
-        // implement new start work
+    } else if args[1] == "work" || args[1] == "w" {
+        work();
     } else {
         eprintln!("Unknown command: \"{}\"", args[1]);
         std::process::exit(1);
