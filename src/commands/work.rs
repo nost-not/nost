@@ -8,25 +8,18 @@ use crate::{
     projects::initialize::initialize_project,
 };
 
-/// Outcome of the work-toggle decision.
-#[derive(Debug, PartialEq)]
-pub enum WorkAction {
-    Start,
-    Stop,
-}
-
-/// Pure function: decides whether to start or stop a work session based on
-/// the most recent work event.  No I/O; easy to unit-test.
-pub fn determine_work_action(last_event: Option<&Event>) -> WorkAction {
+/// Pure function: decides which work event to record next based on the most
+/// recent work event. No I/O; easy to unit-test.
+///
+/// Returns the `EventName` to record: `StartWork` to open a session,
+/// `StopWork` to close the current one.
+pub fn determine_next_work_event(last_event: Option<&Event>) -> EventName {
     match last_event {
-        // No previous event → start a fresh session
-        None => WorkAction::Start,
-        // Last event was a stop → open a new session
-        Some(e) if e.event == EventName::StopWork.to_string() => WorkAction::Start,
         // Last event was a start → close the current session
-        Some(e) if e.event == EventName::StartWork.to_string() => WorkAction::Stop,
-        // Any other event (e.g. CreateNot) → start a fresh session
-        _ => WorkAction::Start,
+        Some(e) if e.event == EventName::StartWork.to_string() => EventName::StopWork,
+        // No previous event, a previous stop, or any non-work event → start a
+        // fresh session
+        _ => EventName::StartWork,
     }
 }
 
@@ -40,17 +33,18 @@ pub fn work() {
     // Read journal.json to determine the current session state.
     let last_event = find_last_work_event();
 
-    match determine_work_action(last_event.as_ref()) {
-        WorkAction::Start => {
+    match determine_next_work_event(last_event.as_ref()) {
+        EventName::StartWork => {
             record_event(Event::now(EventName::StartWork, "work".to_string()))
                 .expect("🛑 Failed to record START_WORK event.");
             println!("✅ Work session started.");
         }
-        WorkAction::Stop => {
+        EventName::StopWork => {
             record_event(Event::now(EventName::StopWork, "work".to_string()))
                 .expect("🛑 Failed to record STOP_WORK event.");
             println!("✅ Work session closed.");
         }
+        _ => unreachable!("determine_next_work_event only returns StartWork or StopWork"),
     }
 
     std::process::exit(0);
@@ -67,29 +61,35 @@ mod tests {
     }
 
     #[test]
-    fn test_determine_work_action_no_previous_event() {
+    fn test_determine_next_work_event_no_previous_event() {
         // No journal entry at all → should start
-        assert_eq!(determine_work_action(None), WorkAction::Start);
+        assert_eq!(determine_next_work_event(None), EventName::StartWork);
     }
 
     #[test]
-    fn test_determine_work_action_after_stop_work() {
+    fn test_determine_next_work_event_after_stop_work() {
         // Last event is STOP_WORK → should start a new session
         let event = make_event(EventName::StopWork);
-        assert_eq!(determine_work_action(Some(&event)), WorkAction::Start);
+        assert_eq!(
+            determine_next_work_event(Some(&event)),
+            EventName::StartWork
+        );
     }
 
     #[test]
-    fn test_determine_work_action_after_start_work() {
+    fn test_determine_next_work_event_after_start_work() {
         // Last event is START_WORK → should close the current session
         let event = make_event(EventName::StartWork);
-        assert_eq!(determine_work_action(Some(&event)), WorkAction::Stop);
+        assert_eq!(determine_next_work_event(Some(&event)), EventName::StopWork);
     }
 
     #[test]
-    fn test_determine_work_action_after_create_not() {
+    fn test_determine_next_work_event_after_create_not() {
         // A non-work event (e.g. CreateNot) → start a fresh session
         let event = make_event(EventName::CreateNot);
-        assert_eq!(determine_work_action(Some(&event)), WorkAction::Start);
+        assert_eq!(
+            determine_next_work_event(Some(&event)),
+            EventName::StartWork
+        );
     }
 }
