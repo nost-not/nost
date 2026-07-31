@@ -63,24 +63,32 @@ fn load_journal_events() -> Result<Vec<Event>, std::io::Error> {
     Ok(events)
 }
 
-/// Compute the total work time in minutes from a chronological slice of work
-/// events (only StartWork / StopWork matter). Same pairing logic as the
+/// Compute the total work time in minutes from a slice of work events (only
+/// StartWork / StopWork matter). Events are sorted chronologically by their
+/// RFC3339 datetime first, so the START/STOP pairing is robust even when the
+/// journal stores them out of order. Same pairing logic as the
 /// annotation-based `compute_work_time_from_annotations`.
 pub fn compute_work_time_from_events(events: &[Event]) -> i32 {
+    // Parse datetimes once and drop unparseable events, then sort chronologically.
+    let mut parsed: Vec<(DateTime<FixedOffset>, EventName)> = events
+        .iter()
+        .filter_map(|event| {
+            let dt = DateTime::parse_from_rfc3339(&event.datetime).ok()?;
+            let name = event.event.parse::<EventName>().ok()?;
+            Some((dt, name))
+        })
+        .collect();
+    parsed.sort_by_key(|(dt, _)| *dt);
+
     let mut total_time_in_minutes = 0;
     let mut start_time: Option<DateTime<FixedOffset>> = None;
 
-    for event in events {
-        let datetime = match DateTime::parse_from_rfc3339(&event.datetime) {
-            Ok(dt) => dt,
-            Err(_) => continue,
-        };
-
-        match event.event.parse::<EventName>() {
-            Ok(EventName::StartWork) => {
+    for (datetime, name) in parsed {
+        match name {
+            EventName::StartWork => {
                 start_time = Some(datetime);
             }
-            Ok(EventName::StopWork) => {
+            EventName::StopWork => {
                 if let Some(start) = start_time {
                     total_time_in_minutes += (datetime - start).num_minutes() as i32;
                     start_time = None;
@@ -249,6 +257,17 @@ mod tests {
             "2025-09-01T09:00:00+00:00",
         )];
         assert_eq!(compute_work_time_from_events(&events), 0);
+    }
+
+    #[test]
+    fn test_compute_work_time_events_out_of_order() {
+        // Journal may store STOP before START (append order != chronological).
+        // The function must sort chronologically before pairing.
+        let events = vec![
+            make_event(EventName::StopWork, "2026-08-01T17:00:00+09:00"),
+            make_event(EventName::StartWork, "2026-08-01T09:00:00+09:00"),
+        ];
+        assert_eq!(compute_work_time_from_events(&events), 8 * 60);
     }
 
     #[test]
