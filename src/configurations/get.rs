@@ -17,8 +17,6 @@ pub fn get_config() -> Result<Config, Box<dyn std::error::Error>> {
  * i.e. get_value_from_config("not_path") will return the value of the "not_path" key in the configuration file.
  */
 pub fn get_value_from_config(key: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let configuration = get_config().unwrap();
-
     if key.is_empty() {
         return Err("Config key cannot be empty".into());
     }
@@ -27,6 +25,8 @@ pub fn get_value_from_config(key: &str) -> Result<String, Box<dyn std::error::Er
     if !configurations_keys.contains(&key) {
         return Err(format!("Key '{}' not found in configuration", key).into());
     }
+
+    let configuration = get_config()?;
 
     match configuration.get_value(key) {
         Some(value) => Ok(value),
