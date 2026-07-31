@@ -131,4 +131,83 @@ mod tests {
         assert_eq!(get_week_of_month_for_date(date(2026, 2, 1)), 1);
         assert_eq!(get_week_of_month_for_date(date(2026, 2, 2)), 2);
     }
+
+    // Build a deterministic local DateTime at midnight for a given calendar date.
+    fn datetime(y: i32, m: u32, d: u32) -> DateTime<Local> {
+        date(y, m, d)
+            .and_hms_opt(0, 0, 0)
+            .unwrap()
+            .and_local_timezone(Local)
+            .unwrap()
+    }
+
+    // --- get_day_suffix ---
+
+    #[test]
+    fn day_suffix_st_nd_rd_th() {
+        assert_eq!(get_day_suffix(1), "st");
+        assert_eq!(get_day_suffix(2), "nd");
+        assert_eq!(get_day_suffix(3), "rd");
+        assert_eq!(get_day_suffix(4), "th");
+        assert_eq!(get_day_suffix(21), "st");
+        assert_eq!(get_day_suffix(22), "nd");
+        assert_eq!(get_day_suffix(23), "rd");
+        assert_eq!(get_day_suffix(31), "st");
+    }
+
+    #[test]
+    fn day_suffix_teens_are_always_th() {
+        // 11th, 12th, 13th are the classic exceptions to the mod-10 rule.
+        assert_eq!(get_day_suffix(11), "th");
+        assert_eq!(get_day_suffix(12), "th");
+        assert_eq!(get_day_suffix(13), "th");
+    }
+
+    // --- get_date_as_text_en ---
+
+    #[test]
+    fn date_as_text_en_formats_full_line() {
+        // Friday July 31st, 2026.
+        assert_eq!(
+            get_date_as_text_en(datetime(2026, 7, 31)),
+            "# Friday, July 31st, 2026\n"
+        );
+    }
+
+    #[test]
+    fn date_as_text_en_uses_correct_ordinal_suffix() {
+        // 1st (not 1th) and 13th (teen exception).
+        assert_eq!(
+            get_date_as_text_en(datetime(2026, 7, 1)),
+            "# Wednesday, July 1st, 2026\n"
+        );
+        assert_eq!(
+            get_date_as_text_en(datetime(2026, 7, 13)),
+            "# Monday, July 13th, 2026\n"
+        );
+    }
+
+    // --- get_date_as_text_fr ---
+
+    #[test]
+    fn date_as_text_fr_formats_full_line() {
+        // Vendredi 31 juillet 2026 (no ordinal suffix in French).
+        assert_eq!(
+            get_date_as_text_fr(datetime(2026, 7, 31)),
+            "# Vendredi 31 juillet 2026\n"
+        );
+    }
+
+    #[test]
+    fn date_as_text_fr_uses_french_month_names() {
+        // Check an accented month name (août) and January boundary.
+        assert_eq!(
+            get_date_as_text_fr(datetime(2026, 8, 1)),
+            "# Samedi 1 août 2026\n"
+        );
+        assert_eq!(
+            get_date_as_text_fr(datetime(2026, 1, 1)),
+            "# Jeudi 1 janvier 2026\n"
+        );
+    }
 }
