@@ -8,9 +8,8 @@ mod plugins;
 mod projects;
 use crate::commands::new::{new, new_legacy};
 use crate::commands::work::work;
-use crate::plugins::gdarquie_work::commands::end_work::end_work;
-use crate::plugins::gdarquie_work::commands::start_work::start_work;
-use crate::plugins::gdarquie_work::commands::work_stats::work_stats;
+use crate::plugins::gdarquie_work::plugin::WorkPlugin;
+use crate::plugins::plugin::PluginRegistry;
 use dotenv::dotenv;
 use std::env;
 
@@ -27,22 +26,33 @@ fn main() {
         std::process::exit(1);
     }
 
-    if args[1] == "new" || args[1] == "n" {
+    // Plugins are registered here — the only place the core names them. To drop
+    // or extract a feature area, add/remove one line; routing below is generic.
+    let registry = PluginRegistry::new().register(Box::new(WorkPlugin));
+
+    let command = args[1].as_str();
+
+    // Give plugins first chance to claim the command.
+    if let Some(result) = registry.dispatch(command, &args) {
+        if let Err(e) = result {
+            eprintln!("{}", e);
+            std::process::exit(1);
+        }
+        return;
+    }
+    // Core built-in commands.
+    if command == "new" || command == "n" {
         new_legacy(args);
-    } else if args[1] == "start-work" || args[1] == "sw" {
-        start_work(args);
-    } else if args[1] == "end-work" || args[1] == "ew" {
-        end_work();
-    } else if args[1] == "work-stats" || args[1] == "ws" {
-        work_stats(args);
-    } else if args[1] == "new-default" || args[1] == "nn" {
+    } else if command == "new-default" || command == "nn" {
         // wip
         new();
         println!("Creating new default note...");
-    } else if args[1] == "work" || args[1] == "w" {
+    } else if command == "work" || command == "w" {
         work();
+    } else if command == "new-start-work" {
+        // implement new start work
     } else {
-        eprintln!("Unknown command: \"{}\"", args[1]);
+        eprintln!("Unknown command: \"{}\"", command);
         std::process::exit(1);
     }
 }
