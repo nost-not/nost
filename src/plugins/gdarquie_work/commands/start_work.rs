@@ -17,5 +17,4 @@ pub fn start_work(args: Vec<String>) {
         Some(default_workday.as_str())
     };
     annotate(None, EventName::StartWork, None, &not_path, workday);
-    std::process::exit(0);
 }

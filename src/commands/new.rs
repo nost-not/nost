@@ -23,8 +23,6 @@ pub fn new_legacy(args: Vec<String>) {
     }
 
     create_file(date).unwrap();
-
-    std::process::exit(0);
 }
 
 pub fn new() {
@@ -33,5 +31,4 @@ pub fn new() {
     let _ = create_note_file_with_folders("default".to_string());
 
     println!("✅ Note has been created successfully!");
-    std::process::exit(0);
 }
