@@ -50,6 +50,24 @@ Or
 cargo run n
 ```
 
+### Create a note for a specific date
+
+By default a note is created for today. You can also pass an optional date
+argument in `YYYY-MM-DD` format to create (or open) the note for that day:
+
+```sh
+cargo run new 2026-07-31
+```
+
+Or with the short alias:
+
+```sh
+cargo run n 2026-07-31
+```
+
+The date must be strictly formatted as `YYYY-MM-DD` (zero-padded month and day).
+An invalid or malformed date exits with an error.
+
 ## Work sessions (WIP)
 
 Begin a work session:
