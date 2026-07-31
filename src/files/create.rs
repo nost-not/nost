@@ -4,7 +4,7 @@ use std::{
     path::Path,
 };
 
-use chrono::{DateTime, Local};
+use chrono::{DateTime, Local, NaiveDate};
 
 use crate::{
     annotations::annotate::annotate,
@@ -16,19 +16,20 @@ use crate::{
     },
     files::{
         append::append,
-        build_paths::{build_file_path_for_now, build_folder_path_for_now},
-        name::name,
+        build_paths::{
+            build_file_path_for_date, build_file_path_for_now, build_folder_path_for_now,
+        },
+        name::{name, name_for_date},
     },
 };
 
-pub fn create_file(title: Option<String>) -> std::io::Result<String> {
+pub fn create_file(date: Option<NaiveDate>) -> std::io::Result<String> {
     // handle paths
     let not_path = get_value_from_config("not_path").unwrap();
-    let not_file_path = build_file_path_for_now(&not_path);
 
-    let not_file_name = match &title {
-        Some(file_title) => file_title.clone(), // todo: validate title here
-        None => name(),
+    let (not_file_path, not_file_name) = match date {
+        Some(d) => (build_file_path_for_date(&not_path, d), name_for_date(d)),
+        None => (build_file_path_for_now(&not_path), name()),
     };
 
     let full_not_file_path = format!("{}{}", not_file_path, not_file_name);
@@ -65,9 +66,18 @@ pub fn create_file(title: Option<String>) -> std::io::Result<String> {
         None,
     );
 
+    let datetime = match date {
+        Some(naive_date) => naive_date
+            .and_hms_opt(0, 0, 0)
+            .unwrap()
+            .and_local_timezone(Local)
+            .unwrap(),
+        None => Local::now(),
+    };
+
     let date_line = match get_value_from_config("language").unwrap().as_str() {
-        "fr" => get_date_as_text_fr(),
-        _ => get_date_as_text_en(), // default to English
+        "fr" => get_date_as_text_fr(datetime),
+        _ => get_date_as_text_en(datetime), // default to English
     };
 
     append(full_not_file_path.clone().into(), &date_line)
@@ -126,8 +136,8 @@ pub fn create_note_file_with_folders(note_type: String) -> std::io::Result<Strin
     };
 
     let date_line = match get_value_from_config("language").unwrap().as_str() {
-        "fr" => get_date_as_text_fr(),
-        _ => get_date_as_text_en(), // default to English
+        "fr" => get_date_as_text_fr(Local::now()),
+        _ => get_date_as_text_en(Local::now()), // default to English
     };
 
     append(today_file_path.clone().into(), &date_line).expect("🛑 Failed to append date as text.");
