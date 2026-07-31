@@ -19,10 +19,10 @@ mod tests {
 
         // Write content with a line break
         fs::write(&file_path, "Hello world!\n").unwrap();
-        assert_eq!(ends_with_line_break(file_path.clone()).unwrap(), true);
+        assert!(ends_with_line_break(file_path.clone()).unwrap());
 
         // Write content without a line break
         fs::write(&file_path, "Hello world!").unwrap();
-        assert_eq!(ends_with_line_break(file_path.clone()).unwrap(), false);
+        assert!(!ends_with_line_break(file_path.clone()).unwrap());
     }
 }
