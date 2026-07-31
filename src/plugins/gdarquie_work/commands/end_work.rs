@@ -95,10 +95,8 @@ pub fn end_work() {
     if !has_active_session(&last_work_annotation) {
         // return a message, we have nothin to do, there is no active session
         println!("No working active session has been found. No annotation has been added.");
-        std::process::exit(0);
+        return;
     }
 
     add_stop_work_annotations(&last_work_annotation, &path);
-
-    std::process::exit(0);
 }

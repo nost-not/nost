@@ -40,7 +40,6 @@ pub fn work_stats(args: Vec<String>) {
     } else {
         println!("{}", stats_content);
     }
-    std::process::exit(0);
 }
 
 // Validate a string as year-month in format YYYY-MM (01..12)
