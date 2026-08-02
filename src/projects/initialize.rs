@@ -1,14 +1,10 @@
 use serde_json::{json, Value};
 use std::{env, fs::create_dir_all, path::Path};
 
-use crate::dates::get::get_now_as_string;
+use crate::{configurations::get::get_value_from_config, dates::get::get_now_as_string};
 
 pub fn get_project_config_path() -> String {
-    // compose configuration path and create configuration folder
-    let not_path = env::var("NOT_PATH").unwrap_or_else(|_| {
-        eprintln!("NOT_PATH environment variable not set.");
-        std::process::exit(1);
-    });
+    let not_path = get_value_from_config("not_path").unwrap();
     format!("{}/{}/", not_path, ".nost")
 }
 
