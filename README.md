@@ -2,7 +2,7 @@
 
 Nost is a markdown-based note generator that adheres to the NOT format.
 
-Whenever you need to take notes, Nost helps you create files following the structure: year/month/week number/day number.
+Whenever you need to take notes, Nost helps you create files following the structure: year/month/week number/day number/default-file-not.
 
 For example, if you add a note on the 6th of June 2025:
 
@@ -10,7 +10,8 @@ For example, if you add a note on the 6th of June 2025:
 2025/
   06/
     1/
-      06.md
+      06/
+        06/default.md
 ```
 
 ## Prerequisites
@@ -50,7 +51,7 @@ Or
 cargo run n
 ```
 
-### Create a note for a specific date
+### Create a note for a specific date (WIP)
 
 By default a note is created for today. You can also pass an optional date
 argument in `YYYY-MM-DD` format to create (or open) the note for that day:
@@ -73,40 +74,40 @@ An invalid or malformed date exits with an error.
 Begin a work session:
 
 ```sh
-cargo run start-work
+cargo run work
 ```
 
 Or
 
 ```sh
-cargo run sw
+cargo run w
 ```
 
 End a work session:
 
 ```sh
-cargo run end-work
+cargo run work
 ```
 
 Or
 
 ```sh
-cargo run ew
+cargo run w
 ```
 
 Display work stats:
 
 ```sh
-cargo run work-stats
+cargo run stats
 ```
 
 Or
 
 ```sh
-cargo run ws
+cargo run s
 ```
 
-### Work plugin configuration
+### Work plugin configuration (WIP)
 
 For computing work stats, add some env vars:
 
