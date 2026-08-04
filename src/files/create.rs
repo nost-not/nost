@@ -9,6 +9,7 @@ use chrono::{DateTime, Local, NaiveDate};
 use crate::{
     annotations::annotate::annotate,
     configurations::get::get_value_from_config,
+    configurations::resolve::resolve_not_path,
     dates::get::{get_date_as_text_en, get_date_as_text_fr, get_day_as_string},
     events::{
         models::{Event, EventName},
@@ -25,7 +26,7 @@ use crate::{
 
 pub fn create_file(date: Option<NaiveDate>) -> std::io::Result<String> {
     // handle paths
-    let not_path = get_value_from_config("not_path").unwrap();
+    let not_path = resolve_not_path().unwrap();
 
     let (not_file_path, not_file_name) = match date {
         Some(d) => (build_file_path_for_date(&not_path, d), name_for_date(d)),
@@ -90,7 +91,7 @@ pub fn create_file(date: Option<NaiveDate>) -> std::io::Result<String> {
 
 pub fn create_note_file_with_folders(note_type: String) -> std::io::Result<String> {
     // get the path of the folder to create
-    let not_path = get_value_from_config("not_path").unwrap();
+    let not_path = resolve_not_path().unwrap();
     let today_folder_path = build_folder_path_for_now(&not_path);
 
     log::debug!(
