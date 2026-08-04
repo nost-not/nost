@@ -27,23 +27,24 @@ fn main() {
         println!("You need to pass at least one argument.");
         std::process::exit(1);
     }
-
-    if args[1] == "new" || args[1] == "n" {
+    if args[1] == "new-legacy" || args[1] == "nl" {
+        // deprecated
         new_legacy(args);
-    } else if args[1] == "start-work" || args[1] == "sw" {
-        start_work(args);
-    } else if args[1] == "end-work" || args[1] == "ew" {
-        end_work();
-    } else if args[1] == "work-stats" || args[1] == "ws" {
-        work_stats(args);
-    } else if args[1] == "new-default" || args[1] == "nn" {
-        // wip
+    } else if args[1] == "new" || args[1] == "n" {
         new();
-        println!("Creating new default note...");
     } else if args[1] == "work" || args[1] == "w" {
         work();
-    } else if args[1] == "new-work-stats" || args[1] == "nws" {
+    } else if args[1] == "stats" || args[1] == "s" {
         new_work_stats(args);
+    } else if args[1] == "start-work" || args[1] == "sw" {
+        // deprecated
+        start_work(args);
+    } else if args[1] == "end-work" || args[1] == "ew" {
+        // deprecated
+        end_work();
+    } else if args[1] == "work-stats" || args[1] == "ws" {
+        // deprecated
+        work_stats(args);
     } else {
         eprintln!("Unknown command: \"{}\"", args[1]);
         std::process::exit(1);
