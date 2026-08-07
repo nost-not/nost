@@ -6,8 +6,9 @@ mod events;
 mod files;
 mod plugins;
 mod projects;
+mod statistics;
 use crate::commands::new::{new, new_legacy};
-use crate::commands::new_work_stats::new_work_stats;
+use crate::commands::stats::stats;
 use crate::commands::work::work;
 use crate::plugins::gdarquie_work::commands::end_work::end_work;
 use crate::plugins::gdarquie_work::commands::start_work::start_work;
@@ -35,7 +36,7 @@ fn main() {
     } else if args[1] == "work" || args[1] == "w" {
         work();
     } else if args[1] == "stats" || args[1] == "s" {
-        new_work_stats(args);
+        stats(args);
     } else if args[1] == "start-work" || args[1] == "sw" {
         // deprecated
         start_work(args);
