@@ -9,19 +9,28 @@ use chrono::{DateTime, Local, NaiveDate};
 use crate::{
     annotations::annotate::annotate,
     configurations::get::get_value_from_config,
-    dates::get::{get_date_as_text_en, get_date_as_text_fr, get_day_as_string},
+    dates::{
+        get::{get_date_as_text_en, get_date_as_text_fr},
+        parse::parse_iso_date,
+        validate::is_valid_string_date,
+    },
     events::{
         models::{Event, EventName},
         record::record_event,
     },
     files::{
         append::append,
-        build_paths::{
-            build_file_path_for_date, build_file_path_for_now, build_folder_path_for_now,
-        },
+        build_paths::{build_file_path_for_date, build_file_path_for_now, build_folder_path},
         name::{name, name_for_date},
     },
 };
+
+fn resolve_file_date(date_in_string: Option<&str>, now: DateTime<Local>) -> String {
+    match date_in_string {
+        Some(date) if is_valid_string_date(date) => date.to_string(),
+        _ => now.format("%Y-%m-%d").to_string(),
+    }
+}
 
 pub fn create_file(date: Option<NaiveDate>) -> std::io::Result<String> {
     // handle paths
@@ -88,21 +97,27 @@ pub fn create_file(date: Option<NaiveDate>) -> std::io::Result<String> {
     Ok(full_not_file_path)
 }
 
-pub fn create_note_file_with_folders(note_type: String) -> std::io::Result<String> {
+pub fn create_note_file_with_folders(
+    note_type: String,
+    date_in_string: Option<String>,
+) -> std::io::Result<String> {
     // get the path of the folder to create
     let not_path = get_value_from_config("not_path").unwrap();
-    let today_folder_path = build_folder_path_for_now(&not_path);
+
+    let file_date = resolve_file_date(date_in_string.as_deref(), Local::now());
+
+    let file_naive_date = parse_iso_date(&file_date).unwrap();
+
+    let today_folder_path = build_folder_path(&not_path, file_naive_date);
 
     log::debug!(
         "🚨 Creating note file with folders at path: {}",
         today_folder_path
     );
 
-    let now: DateTime<Local> = Local::now();
-    let today_file_name = get_day_as_string(now);
     let today_file_path = format!(
         "{}{}{}{}{}",
-        today_folder_path, today_file_name, ".", note_type, ".md"
+        today_folder_path, file_date, ".", note_type, ".md"
     );
 
     // only create if not does not already exists
@@ -127,7 +142,11 @@ pub fn create_note_file_with_folders(note_type: String) -> std::io::Result<Strin
     // create the file
     match File::create(&today_file_path) {
         Ok(_file) => {
-            record_event(Event::now(EventName::CreateNot, note_type.clone()))?;
+            record_event(Event::new(
+                EventName::CreateNot,
+                note_type.clone(),
+                file_date.clone(),
+            ))?;
             println!("✅ File created: {}", today_file_path);
         }
         Err(e) => {
@@ -145,4 +164,40 @@ pub fn create_note_file_with_folders(note_type: String) -> std::io::Result<Strin
     println!("✅ New \"not\" has successfully being initiated.");
 
     Ok(today_file_path)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::resolve_file_date;
+    use chrono::{Local, TimeZone};
+
+    #[test]
+    fn test_resolve_file_date_keeps_valid_input() {
+        let now = Local
+            .with_ymd_and_hms(2026, 8, 13, 12, 0, 0)
+            .single()
+            .unwrap();
+        let resolved = resolve_file_date(Some("2026-08-01"), now);
+        assert_eq!(resolved, "2026-08-01");
+    }
+
+    #[test]
+    fn test_resolve_file_date_falls_back_on_invalid_input() {
+        let now = Local
+            .with_ymd_and_hms(2026, 8, 13, 12, 0, 0)
+            .single()
+            .unwrap();
+        let resolved = resolve_file_date(Some("20260801"), now);
+        assert_eq!(resolved, "2026-08-13");
+    }
+
+    #[test]
+    fn test_resolve_file_date_falls_back_when_missing() {
+        let now = Local
+            .with_ymd_and_hms(2026, 8, 13, 12, 0, 0)
+            .single()
+            .unwrap();
+        let resolved = resolve_file_date(None, now);
+        assert_eq!(resolved, "2026-08-13");
+    }
 }

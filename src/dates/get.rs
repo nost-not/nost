@@ -1,17 +1,12 @@
-use chrono::{DateTime, Datelike, Local};
+use chrono::{DateTime, Datelike, Local, NaiveDate};
 
 pub fn get_now_as_string() -> String {
     let now: DateTime<Local> = Local::now();
     format!("{}{}", now.format("%Y-%m-%dT%H:%M:%S"), now.format("%:z"))
 }
 
-pub fn get_day_as_string(datetime: DateTime<Local>) -> String {
-    format!("{}", datetime.format("%d"))
-}
-
-pub fn get_week_of_month() -> u32 {
-    let today = chrono::Local::now().date_naive();
-    get_week_of_month_for_date(today)
+pub fn get_week_of_month(date: NaiveDate) -> u32 {
+    get_week_of_month_for_date(date)
 }
 
 pub fn get_week_of_month_for_date(date: chrono::NaiveDate) -> u32 {

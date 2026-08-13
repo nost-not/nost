@@ -25,7 +25,7 @@ pub fn new_legacy(args: Vec<String>) {
     create_file(date).unwrap();
 }
 
-pub fn new() {
+pub fn new(date_in_string: Option<String>) {
     // Warn if a work session is still open
     if let Some(last) = find_last_work_event() {
         if last.event == EventName::StartWork.to_string() {
@@ -33,9 +33,9 @@ pub fn new() {
         }
     }
 
-    println!("Creating new note for today...");
+    println!("Creating new note...");
     let _ = initialize_project();
-    let _ = create_note_file_with_folders("default".to_string());
+    let _ = create_note_file_with_folders("default".to_string(), date_in_string);
 
     println!("✅ Note has been created successfully!");
 }

@@ -1,4 +1,4 @@
-use chrono::{Datelike, Local};
+use chrono::{Datelike, Local, NaiveDate};
 
 use crate::dates::get::{get_week_of_month, get_week_of_month_for_date};
 
@@ -27,17 +27,13 @@ pub fn build_file_path_for_date(base_path: &str, date: chrono::NaiveDate) -> Str
     )
 }
 
-pub fn build_folder_path_for_now(base_path: &str) -> String {
-    let today = Local::now().date_naive();
-    let year = today.year();
-    let month = format!("{:02}", today.month());
-
+pub fn build_folder_path(base_path: &str, date: NaiveDate) -> String {
     format!(
         "{}/{}/{}/{}/{}/",
         base_path,
-        year,
-        month,
-        get_week_of_month(),
-        today.day()
+        date.year(),
+        date.month(),
+        get_week_of_month(date),
+        date.day()
     )
 }

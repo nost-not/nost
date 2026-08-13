@@ -67,7 +67,11 @@ mod tests {
     fn test_find_last_work_event_returns_start_work() {
         let dir = tempdir().unwrap();
         env::set_var("NOT_PATH", dir.path().to_str().unwrap());
-        let events = vec![Event::now(EventName::StartWork, "work".to_string())];
+        let events = vec![Event::new(
+            EventName::StartWork,
+            "work".to_string(),
+            "2026-08-13".to_string(),
+        )];
         write_journal(dir.path().to_str().unwrap(), &events);
 
         let result = find_last_work_event();
@@ -85,8 +89,16 @@ mod tests {
         let dir = tempdir().unwrap();
         env::set_var("NOT_PATH", dir.path().to_str().unwrap());
         let events = vec![
-            Event::now(EventName::StartWork, "work".to_string()),
-            Event::now(EventName::StopWork, "work".to_string()),
+            Event::new(
+                EventName::StartWork,
+                "work".to_string(),
+                "2026-08-13".to_string(),
+            ),
+            Event::new(
+                EventName::StopWork,
+                "work".to_string(),
+                "2026-08-13".to_string(),
+            ),
         ];
         write_journal(dir.path().to_str().unwrap(), &events);
 
@@ -106,8 +118,16 @@ mod tests {
         env::set_var("NOT_PATH", dir.path().to_str().unwrap());
         // CreateNot comes after StartWork — it must be ignored; StartWork wins.
         let events = vec![
-            Event::now(EventName::StartWork, "work".to_string()),
-            Event::now(EventName::CreateNot, "note".to_string()),
+            Event::new(
+                EventName::StartWork,
+                "work".to_string(),
+                "2026-08-13".to_string(),
+            ),
+            Event::new(
+                EventName::CreateNot,
+                "note".to_string(),
+                "2026-08-13".to_string(),
+            ),
         ];
         write_journal(dir.path().to_str().unwrap(), &events);
 
@@ -127,11 +147,31 @@ mod tests {
         env::set_var("NOT_PATH", dir.path().to_str().unwrap());
         // Two complete sessions followed by a fresh start.
         let events = vec![
-            Event::now(EventName::StartWork, "work".to_string()),
-            Event::now(EventName::StopWork, "work".to_string()),
-            Event::now(EventName::StartWork, "work".to_string()),
-            Event::now(EventName::StopWork, "work".to_string()),
-            Event::now(EventName::StartWork, "work".to_string()),
+            Event::new(
+                EventName::StartWork,
+                "work".to_string(),
+                "2026-08-13".to_string(),
+            ),
+            Event::new(
+                EventName::StopWork,
+                "work".to_string(),
+                "2026-08-13".to_string(),
+            ),
+            Event::new(
+                EventName::StartWork,
+                "work".to_string(),
+                "2026-08-13".to_string(),
+            ),
+            Event::new(
+                EventName::StopWork,
+                "work".to_string(),
+                "2026-08-13".to_string(),
+            ),
+            Event::new(
+                EventName::StartWork,
+                "work".to_string(),
+                "2026-08-13".to_string(),
+            ),
         ];
         write_journal(dir.path().to_str().unwrap(), &events);
 

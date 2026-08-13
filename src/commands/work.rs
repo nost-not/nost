@@ -1,4 +1,5 @@
 use crate::{
+    dates::validate::is_valid_string_date,
     events::{
         find::find_last_work_event,
         models::{Event, EventName},
@@ -23,25 +24,41 @@ pub fn determine_next_work_event(last_event: Option<&Event>) -> EventName {
     }
 }
 
-pub fn work() {
+pub fn work(date_in_string: Option<String>) {
     let _ = initialize_project();
+
+    if let Some(date) = &date_in_string {
+        if !is_valid_string_date(date) {
+            eprintln!("🛑 Invalid date format: {}. Expected YYYY-MM-DD.", date);
+            std::process::exit(1);
+        }
+    }
 
     // Create (or reuse) today's work file using the new folder structure:
     // <not_path>/<year>/<month>/<week>/<day>/<YYYY-MM-DD>.work.md
-    let _not_path = create_note_file_with_folders("work".to_string()).unwrap();
+    let _not_path =
+        create_note_file_with_folders("work".to_string(), date_in_string.clone()).unwrap();
 
     // Read journal.json to determine the current session state.
     let last_event = find_last_work_event();
 
     match determine_next_work_event(last_event.as_ref()) {
         EventName::StartWork => {
-            record_event(Event::now(EventName::StartWork, "work".to_string()))
-                .expect("🛑 Failed to record START_WORK event.");
+            record_event(Event::new(
+                EventName::StartWork,
+                "work".to_string(),
+                date_in_string.clone().unwrap(),
+            ))
+            .expect("🛑 Failed to record START_WORK event.");
             println!("✅ Work session started.");
         }
         EventName::StopWork => {
-            record_event(Event::now(EventName::StopWork, "work".to_string()))
-                .expect("🛑 Failed to record STOP_WORK event.");
+            record_event(Event::new(
+                EventName::StopWork,
+                "work".to_string(),
+                date_in_string.clone().unwrap(),
+            ))
+            .expect("🛑 Failed to record STOP_WORK event.");
             println!("✅ Work session closed.");
         }
         _ => unreachable!("determine_next_work_event only returns StartWork or StopWork"),
@@ -57,7 +74,7 @@ mod tests {
 
     /// Helper: build a minimal Event with a given name.
     fn make_event(event_name: EventName) -> Event {
-        Event::now(event_name, "work".to_string())
+        Event::new(event_name, "work".to_string(), "2026-08-13".to_string())
     }
 
     #[test]
