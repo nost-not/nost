@@ -16,7 +16,6 @@ use crate::plugins::gdarquie_work::commands::work_stats::work_stats;
 use dotenv::dotenv;
 use std::env;
 
-// todo: give the possibility to create a note for a specific day, eg: 2025-12-31
 // todo: add a version number for nost and for not
 fn main() {
     dotenv().ok();
@@ -32,9 +31,19 @@ fn main() {
         // deprecated
         new_legacy(args);
     } else if args[1] == "new" || args[1] == "n" {
-        new();
+        if args.len() > 2 {
+            let date_arg = args[2].clone();
+            new(Some(date_arg));
+        } else {
+            new(None);
+        }
     } else if args[1] == "work" || args[1] == "w" {
-        work();
+        if args.len() > 2 {
+            let date_arg = args[2].clone();
+            work(Some(date_arg));
+        } else {
+            work(None);
+        }
     } else if args[1] == "stats" || args[1] == "s" {
         stats(args);
     } else if args[1] == "start-work" || args[1] == "sw" {
