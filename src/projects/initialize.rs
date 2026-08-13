@@ -1,12 +1,13 @@
 use serde_json::{json, Value};
-use std::{env, fs::create_dir_all, path::Path};
+use std::{fs::create_dir_all, path::Path};
 
+use crate::configurations::resolve::resolve_not_path;
 use crate::dates::get::get_now_as_string;
 
 pub fn get_project_config_path() -> String {
     // compose configuration path and create configuration folder
-    let not_path = env::var("NOT_PATH").unwrap_or_else(|_| {
-        eprintln!("NOT_PATH environment variable not set.");
+    let not_path = resolve_not_path().unwrap_or_else(|_| {
+        eprintln!("Could not resolve not path (NOT_PATH env or config.toml).");
         std::process::exit(1);
     });
     format!("{}/{}/", not_path, ".nost")
@@ -17,8 +18,8 @@ pub fn get_project_config_path() -> String {
  * in the configuration directory in root/.nost
  */
 pub fn is_project_initialized() -> bool {
-    let not_path = env::var("NOT_PATH").unwrap_or_else(|_| {
-        eprintln!("NOT_PATH environment variable not set.");
+    let not_path = resolve_not_path().unwrap_or_else(|_| {
+        eprintln!("Could not resolve not path (NOT_PATH env or config.toml).");
         std::process::exit(1);
     });
 

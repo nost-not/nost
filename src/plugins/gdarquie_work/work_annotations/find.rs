@@ -1,12 +1,12 @@
 use crate::annotations::extract::extract_annotations_from_path;
 use crate::annotations::filter::filter_annotation_by_events;
-use crate::configurations::get::get_value_from_config;
+use crate::configurations::resolve::resolve_not_path;
 use crate::events::models::EventName;
 use crate::files::find::find_all_not_files;
 use crate::plugins::gdarquie_work::work_annotations::models::WorkAnnotationWithPath;
 
 pub fn find_last_work_annotation() -> Option<WorkAnnotationWithPath> {
-    let not_path = match get_value_from_config("not_path") {
+    let not_path = match resolve_not_path() {
         Ok(path) => path,
         Err(_) => return None,
     };

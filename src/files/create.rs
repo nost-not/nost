@@ -8,7 +8,10 @@ use chrono::{DateTime, Local, NaiveDate};
 
 use crate::{
     annotations::annotate::annotate,
-    configurations::get::get_value_from_config,
+    configurations::{
+        get::get_value_from_config,
+        resolve::resolve_not_path,
+    },
     dates::{
         get::{get_date_as_text_en, get_date_as_text_fr},
         parse::parse_iso_date,
@@ -34,7 +37,7 @@ fn resolve_file_date(date_in_string: Option<&str>, now: DateTime<Local>) -> Stri
 
 pub fn create_file(date: Option<NaiveDate>) -> std::io::Result<String> {
     // handle paths
-    let not_path = get_value_from_config("not_path").unwrap();
+    let not_path = resolve_not_path().unwrap();
 
     let (not_file_path, not_file_name) = match date {
         Some(d) => (build_file_path_for_date(&not_path, d), name_for_date(d)),
@@ -102,7 +105,7 @@ pub fn create_note_file_with_folders(
     date_in_string: Option<String>,
 ) -> std::io::Result<String> {
     // get the path of the folder to create
-    let not_path = get_value_from_config("not_path").unwrap();
+    let not_path = resolve_not_path().unwrap();
 
     let file_date = resolve_file_date(date_in_string.as_deref(), Local::now());
 
