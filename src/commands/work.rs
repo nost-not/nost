@@ -1,3 +1,5 @@
+use chrono::Local;
+
 use crate::{
     dates::validate::is_valid_string_date,
     events::{
@@ -27,17 +29,22 @@ pub fn determine_next_work_event(last_event: Option<&Event>) -> EventName {
 pub fn work(date_in_string: Option<String>) {
     let _ = initialize_project();
 
-    if let Some(date) = &date_in_string {
-        if !is_valid_string_date(date) {
+    // Validate the provided date if any, then resolve to a concrete YYYY-MM-DD string.
+    // This single resolved date is used for both the file path and the journal event,
+    // ensuring they are always consistent.
+    let resolved_date = match date_in_string {
+        Some(ref date) if !is_valid_string_date(date) => {
             eprintln!("🛑 Invalid date format: {}. Expected YYYY-MM-DD.", date);
             std::process::exit(1);
         }
-    }
+        Some(ref date) => date.clone(),
+        None => Local::now().format("%Y-%m-%d").to_string(),
+    };
 
-    // Create (or reuse) today's work file using the new folder structure:
+    // Create (or reuse) the work file using the new folder structure:
     // <not_path>/<year>/<month>/<week>/<day>/<YYYY-MM-DD>.work.md
     let _not_path =
-        create_note_file_with_folders("work".to_string(), date_in_string.clone()).unwrap();
+        create_note_file_with_folders("work".to_string(), Some(resolved_date.clone())).unwrap();
 
     // Read journal.json to determine the current session state.
     let last_event = find_last_work_event();
@@ -47,7 +54,7 @@ pub fn work(date_in_string: Option<String>) {
             record_event(Event::new(
                 EventName::StartWork,
                 "work".to_string(),
-                date_in_string.clone().unwrap(),
+                resolved_date.clone(),
             ))
             .expect("🛑 Failed to record START_WORK event.");
             println!("✅ Work session started.");
@@ -56,7 +63,7 @@ pub fn work(date_in_string: Option<String>) {
             record_event(Event::new(
                 EventName::StopWork,
                 "work".to_string(),
-                date_in_string.clone().unwrap(),
+                resolved_date.clone(),
             ))
             .expect("🛑 Failed to record STOP_WORK event.");
             println!("✅ Work session closed.");
