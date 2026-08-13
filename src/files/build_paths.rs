@@ -29,7 +29,7 @@ pub fn build_file_path_for_date(base_path: &str, date: chrono::NaiveDate) -> Str
 
 pub fn build_folder_path(base_path: &str, date: NaiveDate) -> String {
     format!(
-        "{}/{}/{}/{}/{}/",
+        "{}/{}/{:02}/{}/{:02}/",
         base_path,
         date.year(),
         date.month(),
