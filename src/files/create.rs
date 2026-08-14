@@ -21,7 +21,7 @@ use crate::{
     files::{
         append::append,
         build_paths::{build_file_path_for_date, build_file_path_for_now, build_folder_path},
-        name::{name, name_for_date},
+        name::{name, name_for_date, name_from_iso_date_str},
     },
 };
 
@@ -103,11 +103,9 @@ pub fn create_note_file_with_folders(
 ) -> std::io::Result<String> {
     // get the path of the folder to create
     let not_path = get_value_from_config("not_path").unwrap();
-
     let file_date = resolve_file_date(date_in_string.as_deref(), Local::now());
-
+    let file_name = name_from_iso_date_str(&file_date);
     let file_naive_date = parse_iso_date(&file_date).unwrap();
-
     let today_folder_path = build_folder_path(&not_path, file_naive_date);
 
     log::debug!(
@@ -117,7 +115,7 @@ pub fn create_note_file_with_folders(
 
     let today_file_path = format!(
         "{}{}{}{}{}",
-        today_folder_path, file_date, ".", note_type, ".md"
+        today_folder_path, file_name, ".", note_type, ".md"
     );
 
     // only create if not does not already exists
