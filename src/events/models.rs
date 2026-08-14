@@ -3,6 +3,13 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use uuid::Uuid;
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkSession {
+    pub workday: String,
+    pub start: String,
+    pub stop: Option<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum EventName {
     StartWork,

@@ -3,9 +3,8 @@ use chrono::Local;
 use crate::{
     dates::validate::is_valid_string_date,
     events::{
-        find::find_last_work_event,
-        models::{Event, EventName},
-        record::record_event,
+        journal::{append_session, load_month_sessions, update_last_stop},
+        models::{Event, EventName, WorkSession},
     },
     files::create::create_note_file_with_folders,
     projects::initialize::initialize_project,
@@ -16,6 +15,7 @@ use crate::{
 ///
 /// Returns the `EventName` to record: `StartWork` to open a session,
 /// `StopWork` to close the current one.
+#[allow(dead_code)]
 pub fn determine_next_work_event(last_event: Option<&Event>) -> EventName {
     match last_event {
         // Last event was a start → close the current session
@@ -30,8 +30,6 @@ pub fn work(date_in_string: Option<String>) {
     let _ = initialize_project();
 
     // Validate the provided date if any, then resolve to a concrete YYYY-MM-DD string.
-    // This single resolved date is used for both the file path and the journal event,
-    // ensuring they are always consistent.
     let resolved_date = match date_in_string {
         Some(ref date) if !is_valid_string_date(date) => {
             eprintln!("🛑 Invalid date format: {}. Expected YYYY-MM-DD.", date);
@@ -41,34 +39,33 @@ pub fn work(date_in_string: Option<String>) {
         None => Local::now().format("%Y-%m-%d").to_string(),
     };
 
-    // Create (or reuse) the work file using the new folder structure:
-    // <not_path>/<year>/<month>/<week>/<day>/<YYYY-MM-DD>.work.md
+    // Create (or reuse) the work file.
     let _not_path =
         create_note_file_with_folders("work".to_string(), Some(resolved_date.clone())).unwrap();
 
-    // Read journal.json to determine the current session state.
-    let last_event = find_last_work_event();
+    // Determine the current month for the NDJSON journal.
+    let month = &resolved_date[..7]; // YYYY-MM
 
-    match determine_next_work_event(last_event.as_ref()) {
-        EventName::StartWork => {
-            record_event(Event::new(
-                EventName::StartWork,
-                "work".to_string(),
-                resolved_date.clone(),
-            ))
-            .expect("🛑 Failed to record START_WORK event.");
-            println!("✅ Work session started.");
-        }
-        EventName::StopWork => {
-            record_event(Event::new(
-                EventName::StopWork,
-                "work".to_string(),
-                resolved_date.clone(),
-            ))
-            .expect("🛑 Failed to record STOP_WORK event.");
-            println!("✅ Work session closed.");
-        }
-        _ => unreachable!("determine_next_work_event only returns StartWork or StopWork"),
+    // Check if there is an open session in the monthly NDJSON file.
+    let sessions = load_month_sessions(month).unwrap_or_default();
+    let has_open_session = sessions.last().map(|s| s.stop.is_none()).unwrap_or(false);
+
+    if has_open_session {
+        // Close the open session.
+        let stop_datetime = Local::now().to_rfc3339();
+        update_last_stop(month, &stop_datetime)
+            .expect("🛑 Failed to close work session.");
+        println!("✅ Work session closed.");
+    } else {
+        // Open a new session.
+        let start_datetime = Local::now().to_rfc3339();
+        let session = WorkSession {
+            workday: resolved_date.clone(),
+            start: start_datetime,
+            stop: None,
+        };
+        append_session(&session).expect("🛑 Failed to start work session.");
+        println!("✅ Work session started.");
     }
 
     std::process::exit(0);
