@@ -1,5 +1,8 @@
 use crate::{
-    events::models::{Event, EventName},
+    events::{
+        journal::load_month_sessions,
+        models::{Event, EventName},
+    },
     projects::initialize::get_project_config_path,
     statistics::models::{MonthStats, Stats, WeekId, WeekStats},
 };
@@ -57,13 +60,19 @@ pub fn compute_month_stats(month: Option<&str>) -> Result<MonthStats, std::io::E
 
     debug!("Computing stats for month: {}", date.format("%Y-%m"));
 
-    let month = date.format("%Y-%m").to_string();
+    let month_str = date.format("%Y-%m").to_string();
+
+    // Try new NDJSON file first; fall back to legacy journal.json
+    let ndjson_path = crate::events::journal::journal_file_path(&month_str);
+    if Path::new(&ndjson_path).exists() {
+        let sessions = load_month_sessions_for_stats(&month_str)?;
+        log::debug!("Loaded {} sessions from NDJSON journal.", sessions.len());
+        return Ok(compute_stats_from_sessions(sessions));
+    }
+
     let events = load_events()?;
-    let month_events = filter_month_events(&month, events);
-
+    let month_events = filter_month_events(&month_str, events);
     log::debug!("Loaded {} events from journal.", month_events.len());
-
-    // we have the month events, now we can compute the stats
     Ok(compute_stats_from_events(month_events))
 }
 
@@ -125,6 +134,79 @@ pub fn compute_stats_from_events(events: Vec<Event>) -> MonthStats {
     }
 }
 
+/// Load WorkSessions for the given month from the NDJSON journal file.
+pub fn load_month_sessions_for_stats(
+    month: &str,
+) -> Result<Vec<crate::events::models::WorkSession>, std::io::Error> {
+    load_month_sessions(month)
+}
+
+/// Compute MonthStats from a list of WorkSession records.
+pub fn compute_stats_from_sessions(
+    sessions: Vec<crate::events::models::WorkSession>,
+) -> MonthStats {
+    let mut work_stats_by_week: HashMap<WeekId, WeekStats> = HashMap::new();
+    let mut total_duration = 0;
+    let mut worked_days_set = HashSet::new();
+
+    // Group sessions by workday
+    let mut sessions_by_day: HashMap<String, Vec<crate::events::models::WorkSession>> =
+        HashMap::new();
+    for session in sessions {
+        sessions_by_day
+            .entry(session.workday.clone())
+            .or_default()
+            .push(session);
+    }
+
+    for (day, day_sessions) in sessions_by_day.iter() {
+        let length_in_minutes: i32 = day_sessions
+            .iter()
+            .filter_map(|s| {
+                let start = DateTime::parse_from_rfc3339(&s.start).ok()?;
+                let stop_str = s.stop.as_ref()?;
+                let stop = DateTime::parse_from_rfc3339(stop_str).ok()?;
+                Some((stop - start).num_minutes() as i32)
+            })
+            .sum();
+
+        let parsed_date = match NaiveDate::parse_from_str(day, "%Y-%m-%d") {
+            Ok(d) => d,
+            Err(_) => continue,
+        };
+        let week_id = WeekId {
+            year: parsed_date.iso_week().year(),
+            week: parsed_date.iso_week().week(),
+        };
+
+        work_stats_by_week
+            .entry(week_id)
+            .and_modify(|week_stats| {
+                week_stats.total_duration_in_minutes += length_in_minutes;
+                week_stats.work_stats.push(Stats {
+                    day: day.clone(),
+                    length_in_minutes,
+                });
+            })
+            .or_insert_with(|| WeekStats {
+                total_duration_in_minutes: length_in_minutes,
+                work_stats: vec![Stats {
+                    day: day.clone(),
+                    length_in_minutes,
+                }],
+            });
+
+        total_duration += length_in_minutes;
+        worked_days_set.insert(day.clone());
+    }
+
+    MonthStats {
+        total_duration_in_minutes: total_duration,
+        total_work_days: worked_days_set.len() as i32,
+        work_stats_by_week,
+    }
+}
+
 /// Compute the total work time in minutes from a slice of work events
 pub fn compute_workday_duration(events: &[Event]) -> i32 {
     // Sort events by datetime
@@ -166,8 +248,8 @@ pub fn compute_workday_duration(events: &[Event]) -> i32 {
 
 #[cfg(test)]
 mod tests {
-    use super::{compute_stats_from_events, compute_workday_duration, filter_month_events};
-    use crate::events::models::{Event, EventName};
+    use super::{compute_stats_from_events, compute_stats_from_sessions, compute_workday_duration, filter_month_events};
+    use crate::events::models::{Event, EventName, WorkSession};
     use chrono::DateTime;
 
     fn make_event(day: &str, uid: &str) -> Event {
@@ -287,6 +369,62 @@ mod tests {
 
         let stats = compute_stats_from_events(events);
 
+        assert_eq!(stats.total_work_days, 2);
+        assert_eq!(stats.total_duration_in_minutes, 180);
+        assert_eq!(stats.work_stats_by_week.len(), 1);
+    }
+
+    fn make_session(workday: &str, start: &str, stop: Option<&str>) -> WorkSession {
+        WorkSession {
+            workday: workday.to_string(),
+            start: start.to_string(),
+            stop: stop.map(|s| s.to_string()),
+        }
+    }
+
+    #[test]
+    fn compute_stats_from_sessions_single_session() {
+        let sessions = vec![make_session(
+            "2026-08-05",
+            "2026-08-05T09:00:00+00:00",
+            Some("2026-08-05T10:30:00+00:00"),
+        )];
+        let stats = compute_stats_from_sessions(sessions);
+        assert_eq!(stats.total_work_days, 1);
+        assert_eq!(stats.total_duration_in_minutes, 90);
+    }
+
+    #[test]
+    fn compute_stats_from_sessions_open_session_excluded() {
+        // Open session (no stop) should contribute 0 minutes
+        let sessions = vec![
+            make_session(
+                "2026-08-05",
+                "2026-08-05T09:00:00+00:00",
+                Some("2026-08-05T10:00:00+00:00"),
+            ),
+            make_session("2026-08-05", "2026-08-05T14:00:00+00:00", None),
+        ];
+        let stats = compute_stats_from_sessions(sessions);
+        assert_eq!(stats.total_work_days, 1);
+        assert_eq!(stats.total_duration_in_minutes, 60);
+    }
+
+    #[test]
+    fn compute_stats_from_sessions_multiple_days() {
+        let sessions = vec![
+            make_session(
+                "2026-08-05",
+                "2026-08-05T09:00:00+00:00",
+                Some("2026-08-05T10:00:00+00:00"),
+            ),
+            make_session(
+                "2026-08-06",
+                "2026-08-06T10:00:00+00:00",
+                Some("2026-08-06T12:00:00+00:00"),
+            ),
+        ];
+        let stats = compute_stats_from_sessions(sessions);
         assert_eq!(stats.total_work_days, 2);
         assert_eq!(stats.total_duration_in_minutes, 180);
         assert_eq!(stats.work_stats_by_week.len(), 1);
