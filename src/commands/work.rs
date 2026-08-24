@@ -1,4 +1,4 @@
-use chrono::Local;
+use chrono::{DateTime, Local, Timelike};
 
 use crate::{
     dates::validate::is_valid_string_date,
@@ -26,6 +26,18 @@ pub fn determine_next_work_event(last_event: Option<&Event>) -> EventName {
     }
 }
 
+const DEFAULT_WORK_DAY_LAST_HOUR: u32 = 6;
+
+pub fn define_current_work_day(datetime: DateTime<Local>, last_hour: u32) -> String {
+    let today = datetime.format("%Y-%m-%d").to_string();
+    // if time is before the configured last hour of the work day, consider it still the previous day
+    if datetime.hour() < last_hour {
+        let yesterday = datetime.date_naive() - chrono::Duration::days(1);
+        return yesterday.format("%Y-%m-%d").to_string();
+    }
+    today
+}
+
 pub fn work(date_in_string: Option<String>) {
     let _ = initialize_project();
 
@@ -38,7 +50,13 @@ pub fn work(date_in_string: Option<String>) {
             std::process::exit(1);
         }
         Some(ref date) => date.clone(),
-        None => Local::now().format("%Y-%m-%d").to_string(),
+        None => {
+            let last_hour = crate::configurations::get::get_config()
+                .ok()
+                .and_then(|c| c.work_day_last_hour)
+                .unwrap_or(DEFAULT_WORK_DAY_LAST_HOUR);
+            define_current_work_day(Local::now(), last_hour)
+        }
     };
 
     // Create (or reuse) the work file using the new folder structure:
@@ -114,6 +132,79 @@ mod tests {
         assert_eq!(
             determine_next_work_event(Some(&event)),
             EventName::StartWork
+        );
+    }
+
+    fn make_datetime(date: &str, hour: u32) -> DateTime<Local> {
+        use chrono::{NaiveDate, TimeZone};
+        Local
+            .from_local_datetime(
+                &NaiveDate::parse_from_str(date, "%Y-%m-%d")
+                    .unwrap()
+                    .and_hms_opt(hour, 0, 0)
+                    .unwrap(),
+            )
+            .unwrap()
+    }
+
+    #[test]
+    fn test_work_day_normal_hour() {
+        assert_eq!(
+            define_current_work_day(make_datetime("2026-08-25", 10), 6),
+            "2026-08-25"
+        );
+    }
+
+    #[test]
+    fn test_work_day_before_6am() {
+        assert_eq!(
+            define_current_work_day(make_datetime("2026-08-25", 5), 6),
+            "2026-08-24"
+        );
+    }
+
+    #[test]
+    fn test_work_day_exactly_midnight() {
+        assert_eq!(
+            define_current_work_day(make_datetime("2026-08-25", 0), 6),
+            "2026-08-24"
+        );
+    }
+
+    #[test]
+    fn test_work_day_exactly_6am() {
+        assert_eq!(
+            define_current_work_day(make_datetime("2026-08-25", 6), 6),
+            "2026-08-25"
+        );
+    }
+
+    #[test]
+    fn test_work_day_month_boundary() {
+        assert_eq!(
+            define_current_work_day(make_datetime("2026-09-01", 3), 6),
+            "2026-08-31"
+        );
+    }
+
+    #[test]
+    fn test_work_day_year_boundary() {
+        assert_eq!(
+            define_current_work_day(make_datetime("2026-01-01", 3), 6),
+            "2025-12-31"
+        );
+    }
+
+    #[test]
+    fn test_work_day_custom_start_hour() {
+        // with start_hour=4, 03:00 is still previous day but 04:00 is the new day
+        assert_eq!(
+            define_current_work_day(make_datetime("2026-08-25", 3), 4),
+            "2026-08-24"
+        );
+        assert_eq!(
+            define_current_work_day(make_datetime("2026-08-25", 4), 4),
+            "2026-08-25"
         );
     }
 }

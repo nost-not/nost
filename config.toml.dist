@@ -1,3 +1,6 @@
 not_path=""
 # optionnal, default is 'en', only 'en' and 'fr' are supported for now
 language="en"
+# optional, last hour of the work day (0-23), default is 6
+# times before this hour are considered part of the previous day
+# work_day_last_hour=6
