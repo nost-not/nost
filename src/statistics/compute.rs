@@ -1,9 +1,9 @@
 use crate::{
-    events::models::{Event, EventName},
+    events::models::Event,
     projects::initialize::get_project_config_path,
-    statistics::models::{MonthStats, Stats, WeekId, WeekStats},
+    statistics::models::{MonthStats, Stats, WeekId, WeekStats, WorkEvent, WorkEventKind},
 };
-use chrono::{DateTime, Datelike, FixedOffset, Local, NaiveDate};
+use chrono::{Datelike, Local, NaiveDate};
 use log::debug;
 use std::{
     collections::{HashMap, HashSet},
@@ -16,7 +16,6 @@ fn load_events() -> Result<Vec<Event>, std::io::Error> {
     let config_path = get_project_config_path();
     let journal_file_path = format!("{}/journal.json", config_path);
 
-    // if there is no journal file yet, return an empty vec
     if !Path::new(&journal_file_path).exists() {
         return Ok(Vec::new());
     }
@@ -33,18 +32,18 @@ fn load_events() -> Result<Vec<Event>, std::io::Error> {
     Ok(events)
 }
 
-fn filter_month_events(month: &str, events: Vec<Event>) -> Vec<Event> {
+/// Parse raw events into `WorkEvent`s, keeping only the requested month.
+/// This is the single validation boundary: invalid datetimes and non-work
+/// events are silently dropped here. Everything downstream is panic-free.
+fn parse_month_events(month: &str, events: Vec<Event>) -> Vec<WorkEvent> {
     events
         .into_iter()
-        .filter(|event| {
-            event.day.starts_with(month)
-                && matches!(event.event.as_str(), "START_WORK" | "STOP_WORK")
-        })
+        .filter(|e| e.day.starts_with(month))
+        .filter_map(|e| WorkEvent::try_from_raw(&e.datetime, &e.event, &e.day))
         .collect()
 }
 
 pub fn compute_month_stats(month: Option<&str>) -> Result<MonthStats, std::io::Error> {
-    // get the month to compute stats for, defaulting to the current month if not provided
     let date = match month {
         Some(m) => NaiveDate::parse_from_str(&format!("{}-01", m), "%Y-%m-%d").map_err(|e| {
             std::io::Error::new(
@@ -55,36 +54,34 @@ pub fn compute_month_stats(month: Option<&str>) -> Result<MonthStats, std::io::E
         None => Local::now().date_naive(),
     };
 
-    debug!("Computing stats for month: {}", date.format("%Y-%m"));
-
     let month = date.format("%Y-%m").to_string();
-    let events = load_events()?;
-    let month_events = filter_month_events(&month, events);
+    debug!("Computing stats for month: {}", &month);
+    println!("Computing stats for month: {}", &month);
 
-    log::debug!("Loaded {} events from journal.", month_events.len());
+    let raw_events = load_events()?;
+    let work_events = parse_month_events(&month, raw_events);
 
-    // we have the month events, now we can compute the stats
-    Ok(compute_stats_from_events(month_events))
+    debug!("Loaded {} work events from journal.", work_events.len());
+
+    Ok(compute_stats_from_events(work_events))
 }
 
-pub fn compute_stats_from_events(events: Vec<Event>) -> MonthStats {
-    // group events by workday (based on the event day, RFC3339-derived)
-    let mut events_by_day: HashMap<String, Vec<Event>> = HashMap::new();
+pub fn compute_stats_from_events(events: Vec<WorkEvent>) -> MonthStats {
+    // Group events by workday
+    let mut events_by_day: HashMap<String, Vec<WorkEvent>> = HashMap::new();
     for event in events {
         let day = event.day.clone();
         events_by_day.entry(day).or_default().push(event);
     }
 
-    // prepare to compute stats by week
     let mut work_stats_by_week: HashMap<WeekId, WeekStats> = HashMap::new();
     let mut total_duration = 0;
     let mut worked_days_set = HashSet::new();
 
-    // compute stats for each day and aggregate by week
     for (day, day_events) in events_by_day.iter() {
         let length_in_minutes = compute_workday_duration(day_events);
 
-        let parsed_date = match chrono::NaiveDate::parse_from_str(day, "%Y-%m-%d") {
+        let parsed_date = match NaiveDate::parse_from_str(day, "%Y-%m-%d") {
             Ok(d) => d,
             Err(_) => continue,
         };
@@ -93,9 +90,7 @@ pub fn compute_stats_from_events(events: Vec<Event>) -> MonthStats {
             week: parsed_date.iso_week().week(),
         };
 
-        // add computed stats to week stats
         work_stats_by_week
-            // if week stat already exists, update with current day and adjust week total duration
             .entry(week_id)
             .and_modify(|week_stats| {
                 week_stats.total_duration_in_minutes += length_in_minutes;
@@ -104,7 +99,6 @@ pub fn compute_stats_from_events(events: Vec<Event>) -> MonthStats {
                     length_in_minutes,
                 });
             })
-            // otherwise create a new week stat
             .or_insert_with(|| WeekStats {
                 total_duration_in_minutes: length_in_minutes,
                 work_stats: vec![Stats {
@@ -117,7 +111,6 @@ pub fn compute_stats_from_events(events: Vec<Event>) -> MonthStats {
         worked_days_set.insert(day.clone());
     }
 
-    // regroup the result in a month Stat and return it
     MonthStats {
         total_duration_in_minutes: total_duration,
         total_work_days: worked_days_set.len() as i32,
@@ -125,39 +118,25 @@ pub fn compute_stats_from_events(events: Vec<Event>) -> MonthStats {
     }
 }
 
-/// Compute the total work time in minutes from a slice of work events
-pub fn compute_workday_duration(events: &[Event]) -> i32 {
-    // Sort events by datetime
-    let mut sorted_events: Vec<&Event> = events.iter().collect();
-    sorted_events.sort_by_key(|event| {
-        DateTime::parse_from_rfc3339(&event.datetime)
-            .expect("Invalid RFC3339 datetime in work event")
-    });
+/// Compute the total work time in minutes from a slice of already-validated work events.
+/// No parsing, no error handling — WorkEvent guarantees valid datetimes and kinds.
+pub fn compute_workday_duration(events: &[WorkEvent]) -> i32 {
+    let mut sorted: Vec<&WorkEvent> = events.iter().collect();
+    sorted.sort_by_key(|e| e.datetime);
 
-    // compute work length sessions by pairing START_WORK and STOP_WORK events
     let mut total_time_in_minutes = 0;
-    let mut start_time: Option<DateTime<FixedOffset>> = None;
+    let mut start_time = None;
 
-    for event in sorted_events {
-        // todo: handle validation in one place somewhere, and not here
-        let datetime = DateTime::parse_from_rfc3339(&event.datetime)
-            .expect("Invalid RFC3339 datetime in work event");
-        let event_name = event
-            .event
-            .parse::<EventName>()
-            .expect("Invalid event name in work event");
-
-        match event_name {
-            EventName::StartWork => {
-                start_time = Some(datetime);
+    for event in sorted {
+        match event.kind {
+            WorkEventKind::Start => {
+                start_time = Some(event.datetime);
             }
-            EventName::StopWork => {
-                if let Some(start) = start_time {
-                    total_time_in_minutes += (datetime - start).num_minutes() as i32;
-                    start_time = None;
+            WorkEventKind::Stop => {
+                if let Some(start) = start_time.take() {
+                    total_time_in_minutes += (event.datetime - start).num_minutes() as i32;
                 }
             }
-            _ => { /* ignore other events */ }
         }
     }
 
@@ -166,11 +145,12 @@ pub fn compute_workday_duration(events: &[Event]) -> i32 {
 
 #[cfg(test)]
 mod tests {
-    use super::{compute_stats_from_events, compute_workday_duration, filter_month_events};
-    use crate::events::models::{Event, EventName};
+    use super::{compute_stats_from_events, compute_workday_duration, parse_month_events};
+    use crate::events::models::Event;
+    use crate::statistics::models::{WorkEvent, WorkEventKind};
     use chrono::DateTime;
 
-    fn make_event(day: &str, uid: &str) -> Event {
+    fn make_raw_event(day: &str, uid: &str) -> Event {
         Event {
             datetime: format!("{}T09:00:00+00:00", day),
             event: "START_WORK".to_string(),
@@ -180,113 +160,96 @@ mod tests {
         }
     }
 
-    fn make_event_at(event_name: EventName, datetime: &str, uid: &str) -> Event {
+    fn make_work_event(kind: WorkEventKind, datetime: &str) -> WorkEvent {
         let dt = DateTime::parse_from_rfc3339(datetime).unwrap();
-        Event {
-            datetime: datetime.to_string(),
-            event: event_name.to_string(),
+        WorkEvent {
+            datetime: dt,
+            kind,
             day: dt.format("%Y-%m-%d").to_string(),
-            not_type: "work".to_string(),
-            uid: uid.to_string(),
         }
     }
 
     #[test]
-    fn filter_month_events_keeps_only_requested_month() {
+    fn parse_month_events_keeps_only_requested_month() {
         let events = vec![
-            make_event("2026-08-01", "a"),
-            make_event("2026-08-15", "b"),
-            make_event("2026-07-31", "c"),
-            make_event("2026-09-01", "d"),
+            make_raw_event("2026-08-01", "a"),
+            make_raw_event("2026-08-15", "b"),
+            make_raw_event("2026-07-31", "c"),
+            make_raw_event("2026-09-01", "d"),
         ];
-
-        let filtered = filter_month_events("2026-08", events);
-
-        assert_eq!(filtered.len(), 2);
-        assert!(filtered.iter().all(|e| e.day.starts_with("2026-08")));
+        let parsed = parse_month_events("2026-08", events);
+        assert_eq!(parsed.len(), 2);
+        assert!(parsed.iter().all(|e| e.day.starts_with("2026-08")));
     }
 
     #[test]
-    fn filter_month_events_returns_empty_when_no_match() {
-        let events = vec![make_event("2026-07-31", "a"), make_event("2026-09-01", "b")];
-
-        let filtered = filter_month_events("2026-08", events);
-
-        assert!(filtered.is_empty());
+    fn parse_month_events_drops_invalid_datetime() {
+        let bad = Event {
+            datetime: "not-a-date".to_string(),
+            event: "START_WORK".to_string(),
+            day: "2026-08-01".to_string(),
+            not_type: "work".to_string(),
+            uid: "bad".to_string(),
+        };
+        let parsed = parse_month_events("2026-08", vec![bad]);
+        assert!(parsed.is_empty());
     }
 
     #[test]
-    fn filter_month_events_handles_empty_input() {
-        let events: Vec<Event> = Vec::new();
-
-        let filtered = filter_month_events("2026-08", events);
-
-        assert!(filtered.is_empty());
-    }
-
-    #[test]
-    fn filter_month_events_preserves_input_order() {
-        let events = vec![
-            make_event("2026-08-20", "first"),
-            make_event("2026-08-01", "second"),
-            make_event("2026-08-10", "third"),
-        ];
-
-        let filtered = filter_month_events("2026-08", events);
-
-        let uids: Vec<String> = filtered.into_iter().map(|e| e.uid).collect();
-        assert_eq!(uids, vec!["first", "second", "third"]);
-    }
-
-    #[test]
-    fn filter_month_events_keeps_only_start_or_stop_work() {
-        let mut start = make_event("2026-08-01", "start");
-        start.event = "START_WORK".to_string();
-
-        let mut stop = make_event("2026-08-01", "stop");
-        stop.event = "STOP_WORK".to_string();
-
-        let mut other = make_event("2026-08-01", "other");
+    fn parse_month_events_drops_non_work_events() {
+        let mut other = make_raw_event("2026-08-01", "other");
         other.event = "CREATE_NOT".to_string();
-
-        let events = vec![start, other, stop];
-        let filtered = filter_month_events("2026-08", events);
-
-        let kept: Vec<String> = filtered.into_iter().map(|e| e.uid).collect();
-        assert_eq!(kept, vec!["start", "stop"]);
+        let parsed = parse_month_events("2026-08", vec![other]);
+        assert!(parsed.is_empty());
     }
 
     #[test]
     fn compute_workday_duration_single_session() {
         let events = vec![
-            make_event_at(EventName::StartWork, "2026-08-05T09:00:00+00:00", "a"),
-            make_event_at(EventName::StopWork, "2026-08-05T10:30:00+00:00", "b"),
+            make_work_event(WorkEventKind::Start, "2026-08-05T09:00:00+00:00"),
+            make_work_event(WorkEventKind::Stop, "2026-08-05T10:30:00+00:00"),
         ];
-
         assert_eq!(compute_workday_duration(&events), 90);
     }
 
     #[test]
     fn compute_workday_duration_events_out_of_order() {
         let events = vec![
-            make_event_at(EventName::StopWork, "2026-08-05T18:00:00+00:00", "a"),
-            make_event_at(EventName::StartWork, "2026-08-05T09:00:00+00:00", "b"),
+            make_work_event(WorkEventKind::Stop, "2026-08-05T18:00:00+00:00"),
+            make_work_event(WorkEventKind::Start, "2026-08-05T09:00:00+00:00"),
         ];
-
         assert_eq!(compute_workday_duration(&events), 9 * 60);
+    }
+
+    #[test]
+    fn compute_workday_duration_ignores_unpaired_start() {
+        let events = vec![make_work_event(
+            WorkEventKind::Start,
+            "2026-08-05T09:00:00+00:00",
+        )];
+        assert_eq!(compute_workday_duration(&events), 0);
+    }
+
+    #[test]
+    fn compute_workday_duration_multiple_sessions() {
+        let events = vec![
+            make_work_event(WorkEventKind::Start, "2026-08-05T09:00:00+00:00"),
+            make_work_event(WorkEventKind::Stop, "2026-08-05T10:00:00+00:00"),
+            make_work_event(WorkEventKind::Start, "2026-08-05T14:00:00+00:00"),
+            make_work_event(WorkEventKind::Stop, "2026-08-05T16:30:00+00:00"),
+        ];
+        assert_eq!(compute_workday_duration(&events), 60 + 150);
     }
 
     #[test]
     fn compute_stats_from_events_aggregates_days_and_total() {
         let events = vec![
-            make_event_at(EventName::StartWork, "2026-08-05T09:00:00+00:00", "a"),
-            make_event_at(EventName::StopWork, "2026-08-05T10:00:00+00:00", "b"),
-            make_event_at(EventName::StartWork, "2026-08-06T10:00:00+00:00", "c"),
-            make_event_at(EventName::StopWork, "2026-08-06T12:00:00+00:00", "d"),
+            make_work_event(WorkEventKind::Start, "2026-08-05T09:00:00+00:00"),
+            make_work_event(WorkEventKind::Stop, "2026-08-05T10:00:00+00:00"),
+            make_work_event(WorkEventKind::Start, "2026-08-06T10:00:00+00:00"),
+            make_work_event(WorkEventKind::Stop, "2026-08-06T12:00:00+00:00"),
         ];
-
         let stats = compute_stats_from_events(events);
-
         assert_eq!(stats.total_work_days, 2);
         assert_eq!(stats.total_duration_in_minutes, 180);
         assert_eq!(stats.work_stats_by_week.len(), 1);
