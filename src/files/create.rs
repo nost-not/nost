@@ -4,7 +4,7 @@ use std::{
     path::Path,
 };
 
-use chrono::{DateTime, Local, NaiveDate};
+use chrono::{DateTime, Local, NaiveDate, TimeZone};
 
 use crate::{
     annotations::annotate::annotate,
@@ -106,6 +106,10 @@ pub fn create_note_file_with_folders(
     let file_date = resolve_file_date(date_in_string.as_deref(), Local::now());
     let file_name = name_from_iso_date_str(&file_date);
     let file_naive_date = parse_iso_date(&file_date).unwrap();
+    let file_datetime = file_naive_date
+        .and_hms_opt(0, 0, 0)
+        .and_then(|naive_dt| Local.from_local_datetime(&naive_dt).single())
+        .unwrap_or_else(Local::now);
     let today_folder_path = build_folder_path(&not_path, file_naive_date);
 
     log::debug!(
@@ -153,8 +157,8 @@ pub fn create_note_file_with_folders(
     };
 
     let date_line = match get_value_from_config("language").unwrap().as_str() {
-        "fr" => get_date_as_text_fr(Local::now()),
-        _ => get_date_as_text_en(Local::now()), // default to English
+        "fr" => get_date_as_text_fr(file_datetime),
+        _ => get_date_as_text_en(file_datetime), // default to English
     };
 
     append(today_file_path.clone().into(), &date_line).expect("🛑 Failed to append date as text.");
