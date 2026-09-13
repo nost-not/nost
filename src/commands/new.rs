@@ -1,28 +1,6 @@
 use crate::{
-    dates::parse::parse_iso_date,
-    files::create::{create_file, create_note_file_with_folders},
-    projects::initialize::initialize_project,
+    files::create::create_note_file_with_folders, projects::initialize::initialize_project,
 };
-pub fn new_legacy(args: Vec<String>) {
-    // Optional date argument in YYYY-MM-DD format
-    let date = match args.get(2) {
-        Some(arg) => match parse_iso_date(arg) {
-            Ok(d) => Some(d),
-            Err(msg) => {
-                eprintln!("{}", msg);
-                std::process::exit(1);
-            }
-        },
-        None => None,
-    };
-
-    match date {
-        Some(d) => println!("Creating legacy note for date: {}", d),
-        None => println!("Creating legacy note for today..."),
-    }
-
-    create_file(date).unwrap();
-}
 
 pub fn new(date_in_string: Option<String>) {
     println!("Creating new note...");
