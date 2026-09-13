@@ -1,50 +1,10 @@
 use crate::{
-    events::{
-        journal::load_month_sessions,
-        models::{Event, EventName},
-    },
-    projects::initialize::get_project_config_path,
+    events::{find::find_all_events_file_paths, models::Event},
     statistics::models::{MonthStats, Stats, WeekId, WeekStats},
 };
-use chrono::{DateTime, Datelike, FixedOffset, Local, NaiveDate};
+use chrono::{DateTime, Datelike, Local, NaiveDate};
 use log::debug;
-use std::{
-    collections::{HashMap, HashSet},
-    fs::File,
-    io::BufReader,
-    path::Path,
-};
-
-fn load_events() -> Result<Vec<Event>, std::io::Error> {
-    let config_path = get_project_config_path();
-    let journal_file_path = format!("{}/journal.json", config_path);
-
-    // if there is no journal file yet, return an empty vec
-    if !Path::new(&journal_file_path).exists() {
-        return Ok(Vec::new());
-    }
-
-    let file = File::open(&journal_file_path)?;
-    let reader = BufReader::new(file);
-    let events: Vec<Event> = serde_json::from_reader(reader).map_err(|e| {
-        std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            format!("Invalid JSON in journal file: {}", e),
-        )
-    })?;
-
-    Ok(events)
-}
-
-fn filter_month_events(month: &str, events: Vec<Event>) -> Vec<Event> {
-    events
-        .into_iter()
-        .filter(|event| {
-            event.day.starts_with(month)
-                && matches!(event.event.as_str(), "START_WORK" | "STOP_WORK")
-        })
-        .collect()
-}
+use std::collections::{HashMap, HashSet};
 
 pub fn compute_month_stats(month: Option<&str>) -> Result<MonthStats, std::io::Error> {
     // get the month to compute stats for, defaulting to the current month if not provided
@@ -62,18 +22,37 @@ pub fn compute_month_stats(month: Option<&str>) -> Result<MonthStats, std::io::E
 
     let month_str = date.format("%Y-%m").to_string();
 
-    // Try new NDJSON file first; fall back to legacy journal.json
-    let ndjson_path = crate::events::journal::journal_file_path(&month_str);
-    if Path::new(&ndjson_path).exists() {
-        let sessions = load_month_sessions_for_stats(&month_str)?;
-        log::debug!("Loaded {} sessions from NDJSON journal.", sessions.len());
-        return Ok(compute_stats_from_sessions(sessions));
-    }
+    // get all events for the month
+    let events = find_all_events_file_paths(Some(&month_str))
+        .ok_or_else(|| {
+            std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                format!("No events found for month: {}", month_str), // todo: decide: an error of just a message?
+            )
+        })?
+        .into_iter()
+        .flat_map(|path| {
+            std::fs::read_to_string(&path)
+                .ok()
+                .into_iter()
+                .flat_map(|content| {
+                    content
+                        .lines()
+                        .filter_map(|line| {
+                            let trimmed = line.trim();
+                            if trimmed.is_empty() {
+                                None
+                            } else {
+                                serde_json::from_str::<Event>(trimmed).ok()
+                            }
+                        })
+                        .collect::<Vec<Event>>()
+                })
+        })
+        .collect::<Vec<Event>>();
 
-    let events = load_events()?;
-    let month_events = filter_month_events(&month_str, events);
-    log::debug!("Loaded {} events from journal.", month_events.len());
-    Ok(compute_stats_from_events(month_events))
+    log::debug!("Loaded {} events from journal.", events.len());
+    Ok(compute_stats_from_events(events))
 }
 
 pub fn compute_stats_from_events(events: Vec<Event>) -> MonthStats {
@@ -91,7 +70,7 @@ pub fn compute_stats_from_events(events: Vec<Event>) -> MonthStats {
 
     // compute stats for each day and aggregate by week
     for (day, day_events) in events_by_day.iter() {
-        let length_in_minutes = compute_workday_duration(day_events);
+        let length_in_minutes = compute_events_duration(day_events);
 
         let parsed_date = match chrono::NaiveDate::parse_from_str(day, "%Y-%m-%d") {
             Ok(d) => d,
@@ -134,237 +113,92 @@ pub fn compute_stats_from_events(events: Vec<Event>) -> MonthStats {
     }
 }
 
-/// Load WorkSessions for the given month from the NDJSON journal file.
-pub fn load_month_sessions_for_stats(
-    month: &str,
-) -> Result<Vec<crate::events::models::WorkSession>, std::io::Error> {
-    load_month_sessions(month)
-}
-
-/// Compute MonthStats from a list of WorkSession records.
-pub fn compute_stats_from_sessions(
-    sessions: Vec<crate::events::models::WorkSession>,
-) -> MonthStats {
-    let mut work_stats_by_week: HashMap<WeekId, WeekStats> = HashMap::new();
-    let mut total_duration = 0;
-    let mut worked_days_set = HashSet::new();
-
-    // Group sessions by workday
-    let mut sessions_by_day: HashMap<String, Vec<crate::events::models::WorkSession>> =
-        HashMap::new();
-    for session in sessions {
-        sessions_by_day
-            .entry(session.workday.clone())
-            .or_default()
-            .push(session);
-    }
-
-    for (day, day_sessions) in sessions_by_day.iter() {
-        let length_in_minutes: i32 = day_sessions
-            .iter()
-            .filter_map(|s| {
-                let start = DateTime::parse_from_rfc3339(&s.start).ok()?;
-                let stop_str = s.stop.as_ref()?;
-                let stop = DateTime::parse_from_rfc3339(stop_str).ok()?;
-                Some((stop - start).num_minutes() as i32)
-            })
-            .sum();
-
-        let parsed_date = match NaiveDate::parse_from_str(day, "%Y-%m-%d") {
-            Ok(d) => d,
-            Err(_) => continue,
-        };
-        let week_id = WeekId {
-            year: parsed_date.iso_week().year(),
-            week: parsed_date.iso_week().week(),
-        };
-
-        work_stats_by_week
-            .entry(week_id)
-            .and_modify(|week_stats| {
-                week_stats.total_duration_in_minutes += length_in_minutes;
-                week_stats.work_stats.push(Stats {
-                    day: day.clone(),
-                    length_in_minutes,
-                });
-            })
-            .or_insert_with(|| WeekStats {
-                total_duration_in_minutes: length_in_minutes,
-                work_stats: vec![Stats {
-                    day: day.clone(),
-                    length_in_minutes,
-                }],
-            });
-
-        total_duration += length_in_minutes;
-        worked_days_set.insert(day.clone());
-    }
-
-    MonthStats {
-        total_duration_in_minutes: total_duration,
-        total_work_days: worked_days_set.len() as i32,
-        work_stats_by_week,
-    }
-}
-
 /// Compute the total work time in minutes from a slice of work events
-pub fn compute_workday_duration(events: &[Event]) -> i32 {
+pub fn compute_events_duration(events: &[Event]) -> i32 {
     // Sort events by datetime
-    let mut sorted_events: Vec<&Event> = events.iter().collect();
-    sorted_events.sort_by_key(|event| {
-        DateTime::parse_from_rfc3339(&event.datetime)
-            .expect("Invalid RFC3339 datetime in work event")
-    });
+    let mut sorted_events = events.to_vec();
+    sorted_events.sort_by(|a, b| a.start.cmp(&b.start));
 
-    // compute work length sessions by pairing START_WORK and STOP_WORK events
-    let mut total_time_in_minutes = 0;
-    let mut start_time: Option<DateTime<FixedOffset>> = None;
-
-    for event in sorted_events {
-        // todo: handle validation in one place somewhere, and not here
-        let datetime = DateTime::parse_from_rfc3339(&event.datetime)
-            .expect("Invalid RFC3339 datetime in work event");
-        let event_name = event
-            .event
-            .parse::<EventName>()
-            .expect("Invalid event name in work event");
-
-        match event_name {
-            EventName::StartWork => {
-                start_time = Some(datetime);
+    // compute total time between stop and start for each events
+    events
+        .iter()
+        .filter_map(|event| {
+            if let Some(stop) = &event.stop {
+                let start_dt = DateTime::parse_from_rfc3339(&event.start).ok()?;
+                let stop_dt = DateTime::parse_from_rfc3339(stop).ok()?;
+                let duration = stop_dt.signed_duration_since(start_dt);
+                Some(duration.num_minutes() as i32)
+            } else {
+                None
             }
-            EventName::StopWork => {
-                if let Some(start) = start_time {
-                    total_time_in_minutes += (datetime - start).num_minutes() as i32;
-                    start_time = None;
-                }
-            }
-            _ => { /* ignore other events */ }
-        }
-    }
-
-    total_time_in_minutes
+        })
+        .sum::<i32>()
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{compute_stats_from_events, compute_stats_from_sessions, compute_workday_duration, filter_month_events};
-    use crate::events::models::{Event, EventName, WorkSession};
-    use chrono::DateTime;
+    use super::{compute_events_duration, compute_month_stats, compute_stats_from_events};
+    use crate::events::models::Event;
+    use std::{env, fs};
+    use tempfile::tempdir;
 
-    fn make_event(day: &str, uid: &str) -> Event {
+    fn make_event(day: &str, start: &str, stop: Option<&str>) -> Event {
         Event {
-            datetime: format!("{}T09:00:00+00:00", day),
-            event: "START_WORK".to_string(),
             day: day.to_string(),
-            not_type: "work".to_string(),
-            uid: uid.to_string(),
+            start: start.to_string(),
+            stop: stop.map(|value| value.to_string()),
         }
     }
 
-    fn make_event_at(event_name: EventName, datetime: &str, uid: &str) -> Event {
-        let dt = DateTime::parse_from_rfc3339(datetime).unwrap();
-        Event {
-            datetime: datetime.to_string(),
-            event: event_name.to_string(),
-            day: dt.format("%Y-%m-%d").to_string(),
-            not_type: "work".to_string(),
-            uid: uid.to_string(),
-        }
+    fn write_ndjson_events(base: &str, month: &str, events: &[Event]) {
+        let events_dir = format!("{}/.nost/events", base);
+        fs::create_dir_all(&events_dir).unwrap();
+        let content = events
+            .iter()
+            .map(|event| serde_json::to_string(event).unwrap())
+            .collect::<Vec<String>>()
+            .join("\n");
+        fs::write(format!("{}/{}.ndjson", events_dir, month), content).unwrap();
     }
 
     #[test]
-    fn filter_month_events_keeps_only_requested_month() {
+    fn compute_events_duration_single_session() {
+        let events = vec![make_event(
+            "2026-08-05",
+            "2026-08-05T09:00:00+00:00",
+            Some("2026-08-05T10:30:00+00:00"),
+        )];
+
+        assert_eq!(compute_events_duration(&events), 90);
+    }
+
+    #[test]
+    fn compute_events_duration_ignores_open_sessions() {
         let events = vec![
-            make_event("2026-08-01", "a"),
-            make_event("2026-08-15", "b"),
-            make_event("2026-07-31", "c"),
-            make_event("2026-09-01", "d"),
+            make_event(
+                "2026-08-05",
+                "2026-08-05T09:00:00+00:00",
+                Some("2026-08-05T10:00:00+00:00"),
+            ),
+            make_event("2026-08-05", "2026-08-05T14:00:00+00:00", None),
         ];
 
-        let filtered = filter_month_events("2026-08", events);
-
-        assert_eq!(filtered.len(), 2);
-        assert!(filtered.iter().all(|e| e.day.starts_with("2026-08")));
-    }
-
-    #[test]
-    fn filter_month_events_returns_empty_when_no_match() {
-        let events = vec![make_event("2026-07-31", "a"), make_event("2026-09-01", "b")];
-
-        let filtered = filter_month_events("2026-08", events);
-
-        assert!(filtered.is_empty());
-    }
-
-    #[test]
-    fn filter_month_events_handles_empty_input() {
-        let events: Vec<Event> = Vec::new();
-
-        let filtered = filter_month_events("2026-08", events);
-
-        assert!(filtered.is_empty());
-    }
-
-    #[test]
-    fn filter_month_events_preserves_input_order() {
-        let events = vec![
-            make_event("2026-08-20", "first"),
-            make_event("2026-08-01", "second"),
-            make_event("2026-08-10", "third"),
-        ];
-
-        let filtered = filter_month_events("2026-08", events);
-
-        let uids: Vec<String> = filtered.into_iter().map(|e| e.uid).collect();
-        assert_eq!(uids, vec!["first", "second", "third"]);
-    }
-
-    #[test]
-    fn filter_month_events_keeps_only_start_or_stop_work() {
-        let mut start = make_event("2026-08-01", "start");
-        start.event = "START_WORK".to_string();
-
-        let mut stop = make_event("2026-08-01", "stop");
-        stop.event = "STOP_WORK".to_string();
-
-        let mut other = make_event("2026-08-01", "other");
-        other.event = "CREATE_NOT".to_string();
-
-        let events = vec![start, other, stop];
-        let filtered = filter_month_events("2026-08", events);
-
-        let kept: Vec<String> = filtered.into_iter().map(|e| e.uid).collect();
-        assert_eq!(kept, vec!["start", "stop"]);
-    }
-
-    #[test]
-    fn compute_workday_duration_single_session() {
-        let events = vec![
-            make_event_at(EventName::StartWork, "2026-08-05T09:00:00+00:00", "a"),
-            make_event_at(EventName::StopWork, "2026-08-05T10:30:00+00:00", "b"),
-        ];
-
-        assert_eq!(compute_workday_duration(&events), 90);
-    }
-
-    #[test]
-    fn compute_workday_duration_events_out_of_order() {
-        let events = vec![
-            make_event_at(EventName::StopWork, "2026-08-05T18:00:00+00:00", "a"),
-            make_event_at(EventName::StartWork, "2026-08-05T09:00:00+00:00", "b"),
-        ];
-
-        assert_eq!(compute_workday_duration(&events), 9 * 60);
+        assert_eq!(compute_events_duration(&events), 60);
     }
 
     #[test]
     fn compute_stats_from_events_aggregates_days_and_total() {
         let events = vec![
-            make_event_at(EventName::StartWork, "2026-08-05T09:00:00+00:00", "a"),
-            make_event_at(EventName::StopWork, "2026-08-05T10:00:00+00:00", "b"),
-            make_event_at(EventName::StartWork, "2026-08-06T10:00:00+00:00", "c"),
-            make_event_at(EventName::StopWork, "2026-08-06T12:00:00+00:00", "d"),
+            make_event(
+                "2026-08-05",
+                "2026-08-05T09:00:00+00:00",
+                Some("2026-08-05T10:00:00+00:00"),
+            ),
+            make_event(
+                "2026-08-06",
+                "2026-08-06T10:00:00+00:00",
+                Some("2026-08-06T12:00:00+00:00"),
+            ),
         ];
 
         let stats = compute_stats_from_events(events);
@@ -374,57 +208,67 @@ mod tests {
         assert_eq!(stats.work_stats_by_week.len(), 1);
     }
 
-    fn make_session(workday: &str, start: &str, stop: Option<&str>) -> WorkSession {
-        WorkSession {
-            workday: workday.to_string(),
-            start: start.to_string(),
-            stop: stop.map(|s| s.to_string()),
-        }
-    }
-
     #[test]
-    fn compute_stats_from_sessions_single_session() {
-        let sessions = vec![make_session(
-            "2026-08-05",
-            "2026-08-05T09:00:00+00:00",
-            Some("2026-08-05T10:30:00+00:00"),
-        )];
-        let stats = compute_stats_from_sessions(sessions);
-        assert_eq!(stats.total_work_days, 1);
-        assert_eq!(stats.total_duration_in_minutes, 90);
-    }
-
-    #[test]
-    fn compute_stats_from_sessions_open_session_excluded() {
-        // Open session (no stop) should contribute 0 minutes
-        let sessions = vec![
-            make_session(
+    fn compute_stats_from_events_merges_multiple_sessions_same_day() {
+        let events = vec![
+            make_event(
                 "2026-08-05",
                 "2026-08-05T09:00:00+00:00",
                 Some("2026-08-05T10:00:00+00:00"),
             ),
-            make_session("2026-08-05", "2026-08-05T14:00:00+00:00", None),
+            make_event(
+                "2026-08-05",
+                "2026-08-05T14:00:00+00:00",
+                Some("2026-08-05T16:00:00+00:00"),
+            ),
         ];
-        let stats = compute_stats_from_sessions(sessions);
+
+        let stats = compute_stats_from_events(events);
+
         assert_eq!(stats.total_work_days, 1);
-        assert_eq!(stats.total_duration_in_minutes, 60);
+        assert_eq!(stats.total_duration_in_minutes, 180);
+        assert_eq!(stats.work_stats_by_week.len(), 1);
+        let week_stats = stats.work_stats_by_week.values().next().unwrap();
+        assert_eq!(week_stats.total_duration_in_minutes, 180);
+        assert_eq!(week_stats.work_stats.len(), 1);
+        assert_eq!(week_stats.work_stats[0].day, "2026-08-05");
+        assert_eq!(week_stats.work_stats[0].length_in_minutes, 180);
     }
 
     #[test]
-    fn compute_stats_from_sessions_multiple_days() {
-        let sessions = vec![
-            make_session(
-                "2026-08-05",
-                "2026-08-05T09:00:00+00:00",
-                Some("2026-08-05T10:00:00+00:00"),
-            ),
-            make_session(
-                "2026-08-06",
-                "2026-08-06T10:00:00+00:00",
-                Some("2026-08-06T12:00:00+00:00"),
-            ),
-        ];
-        let stats = compute_stats_from_sessions(sessions);
+    #[serial_test::serial]
+    fn compute_month_stats_reads_requested_month_from_ndjson_files() {
+        let dir = tempdir().unwrap();
+        env::set_var("NOT_PATH", dir.path().to_str().unwrap());
+
+        write_ndjson_events(
+            dir.path().to_str().unwrap(),
+            "2026-08",
+            &[
+                make_event(
+                    "2026-08-05",
+                    "2026-08-05T09:00:00+00:00",
+                    Some("2026-08-05T10:00:00+00:00"),
+                ),
+                make_event(
+                    "2026-08-06",
+                    "2026-08-06T10:00:00+00:00",
+                    Some("2026-08-06T12:00:00+00:00"),
+                ),
+            ],
+        );
+        write_ndjson_events(
+            dir.path().to_str().unwrap(),
+            "2026-09",
+            &[make_event(
+                "2026-09-01",
+                "2026-09-01T09:00:00+00:00",
+                Some("2026-09-01T17:00:00+00:00"),
+            )],
+        );
+
+        let stats = compute_month_stats(Some("2026-08")).unwrap();
+
         assert_eq!(stats.total_work_days, 2);
         assert_eq!(stats.total_duration_in_minutes, 180);
         assert_eq!(stats.work_stats_by_week.len(), 1);

@@ -1,86 +1,105 @@
 use std::{
-    fs::{create_dir_all, read_to_string, write, File},
-    io::Error,
-    path::Path,
+    fs::{create_dir_all, read_to_string, write, OpenOptions},
+    io::{Error, Write},
 };
 
-use log::debug;
+use chrono::Local;
 
-use crate::{events::models::Event, projects::initialize::get_project_config_path};
+use crate::{
+    dates::parse::parse_iso_date, events::models::Event,
+    projects::initialize::get_project_config_path,
+};
 
-pub fn record_event(event: Event) -> std::io::Result<String> {
+pub fn record(event: Event, date_in_string: Option<String>) -> Result<(), Error> {
+    // add the event to the events file for the current month
+    let month = match date_in_string {
+        Some(date_in_string) => {
+            let date = parse_iso_date(&date_in_string).unwrap_or_else(|_| {
+                eprintln!(
+                    "🛑 Invalid date format: {}. Expected YYYY-MM-DD.",
+                    date_in_string
+                );
+                std::process::exit(1);
+            });
+            date.format("%Y-%m").to_string()
+        }
+        None => Local::now().format("%Y-%m").to_string(),
+    };
+
     let config_path = get_project_config_path();
-    debug!("Project config path: {:?}", config_path);
+    let events_dir = format!("{}/events", config_path);
+    let events_file_path = format!("{}/{}.ndjson", events_dir, month);
 
-    // create journal folder if not exists
-    if let Err(e) = create_dir_all(&config_path) {
+    // create the events directory if it doesn't exist
+    if let Err(e) = create_dir_all(&events_dir) {
         return Err(Error::other(format!(
-            "🛑 Failed to create directory: {}",
+            "🛑 Failed to create events directory: {}",
             e
         )));
     }
 
-    // create journal file if not exists
-    let journal_file_path = format!("{}/journal.json", config_path);
-    if !Path::new(&journal_file_path).exists() {
-        if let Err(e) = File::create(&journal_file_path) {
-            return Err(Error::other(format!(
-                "🛑 Failed to create journal file: {}",
-                e
-            )));
-        }
+    if event.stop.is_none() {
+        // Start of session: always append a new NDJSON line.
+        log::debug!("Recording new event: {:?}", event);
+        let event_json = serde_json::to_string(&event)
+            .map_err(|e| Error::other(format!("🛑 Failed to serialize event to JSON: {}", e)))?;
 
-        // initialize the journal file with an empty array
-        if let Err(e) = write(&journal_file_path, "[]") {
-            return Err(Error::other(format!(
-                "🛑 Failed to initialize journal file: {}",
-                e
-            )));
-        }
-    }
+        let mut file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&events_file_path)
+            .map_err(|e| {
+                Error::other(format!(
+                    "🛑 Failed to open events file '{}': {}",
+                    events_file_path, e
+                ))
+            })?;
 
-    // create the record
-    let record = serde_json::to_value(&event)
-        .map_err(|e| Error::other(format!("🛑 Failed to serialize event record: {}", e)))?;
-
-    // append the record in the array (at the end)
-    let journal_content = read_to_string(&journal_file_path).map_err(|e| {
-        Error::other(format!(
-            "🛑 Failed to read journal file '{}': {}",
-            journal_file_path, e
-        ))
-    })?;
-
-    let mut journal_json: serde_json::Value =
-        serde_json::from_str(&journal_content).map_err(|e| {
+        writeln!(file, "{}", event_json).map_err(|e| {
             Error::other(format!(
-                "🛑 Invalid JSON in journal file '{}': {}",
-                journal_file_path, e
+                "🛑 Failed to append event to '{}': {}",
+                events_file_path, e
             ))
         })?;
+    } else {
+        // End of session: update the last open session (stop == null).
+        log::debug!("Updating last event with stop time: {:?}", event);
 
-    let journal_array = journal_json.as_array_mut().ok_or_else(|| {
-        Error::other(format!(
-            "🛑 Journal file '{}' must contain a JSON array",
-            journal_file_path
-        ))
-    })?;
+        let content = read_to_string(&events_file_path).unwrap_or_default();
+        let mut lines: Vec<String> = content
+            .lines()
+            .filter(|line| !line.trim().is_empty())
+            .map(|line| line.to_string())
+            .collect();
 
-    journal_array.push(record);
+        let last_open_index = lines.iter().rposition(|line| {
+            serde_json::from_str::<Event>(line)
+                .map(|e| e.stop.is_none())
+                .unwrap_or(false)
+        });
 
-    let updated_content = serde_json::to_string_pretty(&journal_json).map_err(|e| {
-        Error::other(format!(
-            "🛑 Failed to serialize updated journal '{}': {}",
-            journal_file_path, e
-        ))
-    })?;
+        let index = match last_open_index {
+            Some(index) => index,
+            None => {
+                return Err(Error::other(format!(
+                    "🛑 No open event found to close in '{}'",
+                    events_file_path
+                )));
+            }
+        };
 
-    write(&journal_file_path, format!("{}\n", updated_content)).map_err(|e| {
-        Error::other(format!(
-            "🛑 Failed to write updated journal '{}': {}",
-            journal_file_path, e
-        ))
-    })?;
+        lines[index] = serde_json::to_string(&event)
+            .map_err(|e| Error::other(format!("🛑 Failed to serialize event to JSON: {}", e)))?;
 
-    Ok("Record has been added.".to_string())
+        let new_content = format!("{}\n", lines.join("\n"));
+
+        write(&events_file_path, new_content).map_err(|e| {
+            Error::other(format!(
+                "🛑 Failed to update events file '{}': {}",
+                events_file_path, e
+            ))
+        })?;
+    }
+
+    Ok(())
 }
