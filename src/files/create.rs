@@ -14,10 +14,7 @@ use crate::{
         parse::parse_iso_date,
         validate::is_valid_string_date,
     },
-    events::{
-        models::{Event, EventName},
-        record::record_event,
-    },
+    events::models::EventName,
     files::{
         append::append,
         build_paths::{build_file_path_for_date, build_file_path_for_now, build_folder_path},
@@ -140,11 +137,6 @@ pub fn create_note_file_with_folders(
     // create the file
     match File::create(&today_file_path) {
         Ok(_file) => {
-            record_event(Event::new(
-                EventName::CreateNot,
-                note_type.clone(),
-                file_date.clone(),
-            ))?;
             println!("✅ File created: {}", today_file_path);
         }
         Err(e) => {
