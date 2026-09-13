@@ -22,7 +22,7 @@ pub fn find_all_events_file_paths(date_in_string: Option<&String>) -> Option<Vec
         .filter_map(|entry| {
             entry.ok().and_then(|e| {
                 let path = e.path();
-                if path.is_file() && path.extension().map_or(false, |ext| ext == "ndjson") {
+                if path.is_file() && path.extension().is_some_and(|ext| ext == "ndjson") {
                     Some(path)
                 } else {
                     None
@@ -35,9 +35,8 @@ pub fn find_all_events_file_paths(date_in_string: Option<&String>) -> Option<Vec
     if let Some(date) = date_in_string {
         let month_prefix = &date[..7]; // YYYY-MM
         events_paths.retain(|path| {
-            path.file_stem().map_or(false, |stem| {
-                stem.to_string_lossy().starts_with(month_prefix)
-            })
+            path.file_stem()
+                .is_some_and(|stem| stem.to_string_lossy().starts_with(month_prefix))
         });
     }
 
@@ -51,10 +50,7 @@ pub fn find_all_events_file_paths(date_in_string: Option<&String>) -> Option<Vec
 pub fn find_last_event(date_in_string: Option<String>) -> Option<Event> {
     let events_paths = find_all_events_file_paths(date_in_string.as_ref());
 
-    // If no events file paths were found, return None
-    if events_paths.is_none() {
-        return None;
-    }
+    events_paths.as_ref()?;
 
     let last_month_events_path = events_paths.unwrap().first().cloned()?;
     let content = read_to_string(&last_month_events_path).ok()?;
