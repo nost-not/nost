@@ -107,15 +107,6 @@ Or
 cargo run s
 ```
 
-### Work plugin configuration (WIP)
-
-For computing work stats, add some env vars:
-
-```sh
-export NOST_WORK_SALARY=0
-export NOST_WORK_CURRENCY=EUR
-```
-
 ## Development
 
 Unit tests:
