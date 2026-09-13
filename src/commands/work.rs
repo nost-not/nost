@@ -68,7 +68,9 @@ pub fn work(date_in_string: Option<String>) {
 
 #[cfg(test)]
 mod tests {
+    use crate::commands::work::define_current_work_day;
     use crate::events::models::Event;
+    use chrono::{DateTime, Local};
 
     #[test]
     fn test_compute_next_event_starts_when_no_previous_event() {
