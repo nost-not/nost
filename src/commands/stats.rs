@@ -19,14 +19,12 @@ pub fn stats(args: Vec<String>) {
         Ok(s) => s,
         Err(e) => {
             eprintln!("💥 Cannot compute stats: \"{}\".", e);
-            eprintln!("Is there a journal.json with work events for this month?");
             std::process::exit(1);
         }
     };
 
     log::debug!(
-        "Computed work stats for month {:?}: total_duration_in_minutes={:?}, stats={:?}",
-        month,
+        "Computed stats: total_duration_in_minutes={:?}, stats={:?}",
         stats.total_duration_in_minutes,
         stats
     );
@@ -42,20 +40,22 @@ mod tests {
     use std::{env, fs};
     use tempfile::tempdir;
 
-    fn write_journal(base: &str, events: &[Event]) {
-        let journal_dir = format!("{}/.nost", base);
-        fs::create_dir_all(&journal_dir).unwrap();
-        let content = serde_json::to_string_pretty(events).unwrap();
-        fs::write(format!("{}/journal.json", journal_dir), content).unwrap();
+    fn write_events_file(base: &str, month: &str, events: &[Event]) {
+        let events_dir = format!("{}/.nost/events", base);
+        fs::create_dir_all(&events_dir).unwrap();
+        let content = events
+            .iter()
+            .map(|event| serde_json::to_string(event).unwrap())
+            .collect::<Vec<String>>()
+            .join("\n");
+        fs::write(format!("{}/{}.ndjson", events_dir, month), content).unwrap();
     }
 
-    fn make_event(datetime: &str, day: &str, event: &str, uid: &str) -> Event {
+    fn make_event(day: &str, start: &str, stop: Option<&str>) -> Event {
         Event {
-            datetime: datetime.to_string(),
-            event: event.to_string(),
             day: day.to_string(),
-            not_type: "work".to_string(),
-            uid: uid.to_string(),
+            start: start.to_string(),
+            stop: stop.map(|value| value.to_string()),
         }
     }
 
@@ -67,13 +67,24 @@ mod tests {
         env::set_var("NOST_WORK_SALARY", "100");
         env::set_var("NOST_WORK_CURRENCY", "EUR");
 
-        let events = vec![
-            make_event("2026-08-05T09:00:00+00:00", "2026-08-05", "START_WORK", "a"),
-            make_event("2026-08-05T10:30:00+00:00", "2026-08-05", "STOP_WORK", "b"),
-            make_event("2026-07-31T09:00:00+00:00", "2026-07-31", "START_WORK", "c"),
-            make_event("2026-07-31T10:00:00+00:00", "2026-07-31", "STOP_WORK", "d"),
-        ];
-        write_journal(dir.path().to_str().unwrap(), &events);
+        write_events_file(
+            dir.path().to_str().unwrap(),
+            "2026-08",
+            &[make_event(
+                "2026-08-05",
+                "2026-08-05T09:00:00+00:00",
+                Some("2026-08-05T10:30:00+00:00"),
+            )],
+        );
+        write_events_file(
+            dir.path().to_str().unwrap(),
+            "2026-07",
+            &[make_event(
+                "2026-07-31",
+                "2026-07-31T09:00:00+00:00",
+                Some("2026-07-31T10:00:00+00:00"),
+            )],
+        );
 
         stats(vec![
             "nost".to_string(),

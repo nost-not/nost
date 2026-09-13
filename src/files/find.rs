@@ -59,7 +59,7 @@ pub fn get_project_root() -> Result<PathBuf, Box<dyn std::error::Error>> {
     let project_root = target_dir
         .parent()
         .ok_or("Could not determine project root")?;
-    println!("Project root: {:?}\n", project_root);
+    log::debug!("Project root: {:?}\n", project_root);
 
     Ok(project_root.to_path_buf())
 }
