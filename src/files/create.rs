@@ -28,7 +28,16 @@ pub fn create_note_file_with_folders(
     date_in_string: Option<String>,
 ) -> std::io::Result<String> {
     // get the path of the folder to create
-    let not_path = get_value_from_config("not_path").unwrap();
+    let not_path = match get_value_from_config("not_path") {
+        Ok(path) => path,
+        Err(e) => {
+            return Err(Error::other(format!(
+                "🛑 Could not read `not_path` from configuration: {e}.\n\
+                 Make sure a `config.toml` exists (copy it from `config.toml.dist`) \
+                 with a `not_path` entry, or set the NOT_PATH environment variable."
+            )));
+        }
+    };
     let file_date = resolve_file_date(date_in_string.as_deref(), Local::now());
     let file_name = name_from_iso_date_str(&file_date);
     let file_naive_date = parse_iso_date(&file_date).unwrap();
